@@ -1,12 +1,14 @@
 {
-  "version": "0.2.0",
-  "generated_at_utc": "2026-10-06T14:45:10.574318+00:00",
+  "version": "0.3.0",
+  "generated_at_utc": "2026-10-06T16:15:39.106948+00:00",
   "python": "3.14.7",
   "platform": "Windows",
-  "tests_run": 39,
+  "tests_run": 58,
   "failures": 0,
   "errors": 0,
-  "skipped": 0,
+  "skipped": 4,
+  "tests_passed": 54,
+  "container_tests_enabled": false,
   "success": true,
   "live_model_calls": 0,
   "external_deliveries": 0,
@@ -56,7 +58,7 @@
   },
   "known_limitations": [
     "No live-model evaluation",
-    "No OS sandbox",
+    "Optional Docker isolation requires real-container validation; no kernel-escape guarantee",
     "Conservative overblocking within sensitive tasks",
     "Outbox is local only",
     "Not an independent safety benchmark"
