@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tahu-gateway"
+version = "0.2.0"
+description = "Research authorization gateway for AI agents, with persistent policy checks and audit records"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+tahu = "tahu.server:main"
+
+[tool.setuptools.packages.find]
+include = ["tahu*"]

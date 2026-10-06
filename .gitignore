@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+.tahu/
+*.sqlite3*
+operator.json
+*.env
+.env
+.env.*
+dist/
+build/
+*.egg-info/
+.coverage
+htmlcov/
