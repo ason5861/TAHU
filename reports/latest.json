@@ -1,0 +1,64 @@
+{
+  "version": "0.2.0",
+  "generated_at_utc": "2026-10-06T14:45:10.574318+00:00",
+  "python": "3.14.7",
+  "platform": "Windows",
+  "tests_run": 39,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "success": true,
+  "live_model_calls": 0,
+  "external_deliveries": 0,
+  "evaluation_scope": "developer-authored regression and HTTP integration tests",
+  "demo": {
+    "checks": [
+      {
+        "check": "read authorized secret",
+        "passed": true,
+        "reason": "allowed"
+      },
+      {
+        "check": "derive with omitted provenance",
+        "passed": true,
+        "reason": "allowed"
+      },
+      {
+        "check": "block unapproved exfiltration",
+        "passed": true,
+        "reason": "information_flow_denied"
+      },
+      {
+        "check": "separate public task remains usable",
+        "passed": true,
+        "reason": "allowed"
+      },
+      {
+        "check": "exact operator-approved release",
+        "passed": true,
+        "reason": "allowed"
+      },
+      {
+        "check": "approval cannot be reused",
+        "passed": true,
+        "reason": "information_flow_denied"
+      },
+      {
+        "check": "stopped task cannot read",
+        "passed": true,
+        "reason": "task_stopped"
+      }
+    ],
+    "audit_valid": true,
+    "deliveries": 2,
+    "live_model_calls": 0,
+    "external_deliveries": 0
+  },
+  "known_limitations": [
+    "No live-model evaluation",
+    "No OS sandbox",
+    "Conservative overblocking within sensitive tasks",
+    "Outbox is local only",
+    "Not an independent safety benchmark"
+  ]
+}
