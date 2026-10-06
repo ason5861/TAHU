@@ -31,7 +31,7 @@ def make_server(gateway, operator_token, port=8765):
         raise Invalid("operator_token_must_have_at_least_32_characters")
 
     class Handler(BaseHTTPRequestHandler):
-        server_version = "TAHU/0.2"
+        server_version = "TAHU/0.3"
 
         def setup(self):
             super().setup()
@@ -53,7 +53,7 @@ def make_server(gateway, operator_token, port=8765):
 
         def do_GET(self):
             if self.path == "/health":
-                self.reply(200, {"service": "TAHU", "version": "0.2.0", "sink": "local_sqlite_outbox"})
+                self.reply(200, {"service": "TAHU", "version": "0.3.0", "sink": "local_sqlite_outbox"})
             else:
                 self.reply(404, {"error": "not_found"})
 

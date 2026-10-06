@@ -108,7 +108,7 @@ class Gateway:
             seen.add(artifact["id"])
             if not isinstance(artifact["text"], str) or len(artifact["text"]) > 8000:
                 raise Invalid("invalid_text")
-            if not isinstance(artifact["labels"], list) or any(x not in ("restricted", "unknown") for x in artifact["labels"]):
+            if not isinstance(artifact["labels"], list) or any(x not in ("restricted", "unknown", "untrusted") for x in artifact["labels"]):
                 raise Invalid("invalid_labels")
         token = secrets.token_urlsafe(32)
         policy = {k: data[k] for k in ("purpose", "budget", "attempt_limit", "destinations")}
@@ -235,6 +235,11 @@ class Gateway:
                     return finish(False, "classification_required")
                 grant = db.execute("SELECT * FROM grants WHERE task=? AND artifact=? AND destination=?", (task_id, request["id"], destination)).fetchone()
                 approved = grant and not grant["used"] and grant["expires"] > time.time() and grant["content_hash"] == digest(artifact["text"])
+                # Integrity is separate from confidentiality. Public web content can
+                # still steer an agent; no destination clearance bypasses review.
+                if "untrusted" in labels and not approved:
+                    return finish(False, "untrusted_review_required")
+                labels.discard("untrusted")
                 if not labels <= set(policy["destinations"][destination]) and not approved:
                     return finish(False, "information_flow_denied")
                 delivery = secrets.token_hex(16)
