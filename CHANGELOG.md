@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- Add untrusted-input integrity labels and exact one-use review.
+- Add an optional offline Docker broker with task-local input, fresh execution state, constrained OS access, bounded pipes, cancellation and cleanup.
+- Add regression tests, real-container checks, an isolated demo and Linux CI.
+- Preserve same-task overblocking and disclose missing live-model evaluation and kernel-escape defenses.
+
 ## 0.2.0 — 2026-10-06
 
 - Added authenticated loopback HTTP gateway and provider-neutral Python client.

@@ -4,7 +4,14 @@
 
 A research authorization gateway for AI agents. An agent proposes actions; a separate local service checks task permissions, information flow, approvals and stop state before recording an authorized delivery.
 
-**Status: v0.2.0, runnable research software.** No live AI model has been evaluated. Deliveries go to a local SQLite outbox, not email or the internet. This project does not claim to solve general AI loss of control or provide an operating-system sandbox.
+**Status: v0.3.0, runnable research software with an optional offline Docker worker.** No live AI model has been evaluated. Deliveries go to a local SQLite outbox, not email or the internet. The isolated runner requires Linux Docker; the gateway alone does not sandbox agents. This project does not claim to solve general AI loss of control or container/kernel escapes.
+
+## New in v0.3
+
+- `untrusted` input labels enforce exact human approval before influenced output can be delivered, even internally.
+- A trusted broker starts a fresh, network-disabled container per invocation with only the current task's selected inputs. Workers propose text, never permissions or tool commands.
+- Read-only root filesystem, non-root user, dropped capabilities, resource/output limits, stop polling and forced cleanup constrain offline execution.
+- [Isolation guide and real-container checks](docs/isolation.md). Without Docker execution is refused. The bundled worker is a deterministic probe; real-model integration remains future work.
 
 TAHU 在马来文中意为“知道”，中文取意“知·道”。我们把可追溯、有授权、人类监督与不确定性识别转化为可测试的执行规则。道家思想是设计启发；安全效果以代码和实验为准。
 
@@ -55,7 +62,7 @@ State is saved under `.tahu/`. `operator.json` contains a generated credential. 
 
 ## Evaluation
 
-The committed [machine-readable report](reports/latest.json) records the actual local run. Initially **39 automated tests passed**, plus a separate-process HTTP demonstration. Tests cover malformed requests, privilege separation, provenance omission, cross-task access, replay, approval reuse, concurrent grant consumption, expiry, restart persistence, audit mutation and transactional rollback.
+The committed [machine-readable report](reports/latest.json) records the actual local run. The v0.3 local run passed **54 tests**, with **4 real-container tests explicitly skipped** because Docker was unavailable; the separate-process HTTP demonstration also passed. The Linux isolation CI job is the separate source of real-container evidence. Tests cover malformed requests, privilege separation, provenance omission, cross-task access, replay, approval reuse, concurrent grant consumption, expiry, restart persistence, audit mutation and transactional rollback.
 
 ```sh
 python scripts/evaluate.py
