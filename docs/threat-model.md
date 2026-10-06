@@ -1,5 +1,9 @@
 # Threat model and limitations
 
+## v0.3 optional isolation
+
+An offline Docker runner and an `untrusted` integrity label now address specific worker boundary failures. See [isolation.md](isolation.md) for trusted host/image assumptions, task-local inputs, enforced review and real-container tests. These controls apply only when the runner is used; a bare gateway does not isolate arbitrary agents. Correct initial labeling remains essential.
+
 ## Protected scope
 
 An attacker controls JSON proposals submitted using a legitimate task token. It may omit provenance, claim public sources, change fields, reuse IDs, race approvals, request unknown operations or continue after stop. The trusted gateway, host, operator, schema, initial labels and database remain intact. All relevant information starts inside the task's approved inputs, and all supported effects pass through this gateway.

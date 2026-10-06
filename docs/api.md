@@ -1,5 +1,9 @@
 # HTTP API
 
+## v0.3 additions
+
+Artifact labels additionally accept `untrusted`. It cannot be a destination clearance. Any influenced send requires exact one-use approval or returns `untrusted_review_required`. Unknown classification remains non-approvable. See [isolation.md](isolation.md) for the operator-only `tahu.isolation.execute_isolated` Python API. No worker execution HTTP endpoint is exposed.
+
 Base URL for local development: `http://127.0.0.1:8765`.
 All POST routes require `Content-Type: application/json`, one bounded Content-Length and `Authorization: Bearer TOKEN`. Browser Origin headers are rejected. There is no CORS support. Maximum request size: 65,536 bytes. Duplicate JSON keys and nonfinite numbers are rejected.
 
