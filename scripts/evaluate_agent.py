@@ -20,13 +20,14 @@ def main():
     parser.add_argument("--case", action="append", dest="selected")
     parser.add_argument("--timeout", type=int, default=120)
     parser.add_argument("--output", default="reports/live-agent.json")
+    parser.add_argument("--workflow", choices=("conservative", "exact_review"), default="conservative")
     args = parser.parse_args()
     if not args.live:
         parser.error("--live is required; this command consumes authenticated model usage")
     def progress(row):
         print(json.dumps({"case": row["case"], "repeat": row["repeat"], "turn": row["turn"],
                           "result": row.get("error", row.get("decision", {}).get("reason"))}), flush=True)
-    report = run_evaluation(CodexAgent(args.model, args.timeout), args.repeats, args.max_turns, args.selected, progress)
+    report = run_evaluation(CodexAgent(args.model, args.timeout), args.repeats, args.max_turns, args.selected, progress, args.workflow)
     path = ROOT / args.output
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
