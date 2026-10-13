@@ -137,8 +137,15 @@ class Gateway:
         return {"stopped": True}
 
     def approve(self, data):
-        if not isinstance(data, dict) or set(data) != {"task", "artifact", "destination", "ttl"} or not integer(data["ttl"], 1, 300):
+        required = {"task", "artifact", "destination", "ttl"}
+        if (not isinstance(data, dict) or not required <= set(data)
+                or not set(data) <= required | {"expected_content_hash"}
+                or not integer(data["ttl"], 1, 300)):
             raise Invalid("invalid_approval")
+        expected = data.get("expected_content_hash")
+        if "expected_content_hash" in data and (not isinstance(expected, str) or len(expected) != 64
+                                                or any(c not in "0123456789abcdef" for c in expected)):
+            raise Invalid("invalid_expected_content_hash")
         if not all(identifier(data[k]) for k in ("task", "artifact", "destination")):
             raise Invalid("invalid_approval_identity")
         with self.transaction() as db:
@@ -152,6 +159,8 @@ class Gateway:
             if "unknown" in labels:
                 raise Invalid("classification_required")
             content_hash = digest(artifact["text"])
+            if expected is not None and expected != content_hash:
+                raise Invalid("reviewed_content_mismatch")
             db.execute("INSERT OR REPLACE INTO grants VALUES(?,?,?,?,?,0)", (data["task"], data["artifact"], data["destination"], content_hash, time.time() + data["ttl"]))
             self.audit(db, {"event": "operator_approved", "task": data["task"], "artifact": data["artifact"], "destination": data["destination"], "content_hash": content_hash})
         return {"approved": True, "content_hash": content_hash}
