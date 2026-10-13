@@ -4,7 +4,36 @@
 
 A research authorization gateway for AI agents. An agent proposes actions; a separate local service checks task permissions, information flow, approvals and stop state before recording an authorized delivery.
 
-**Status: v0.3.0, runnable research software with an optional offline Docker worker.** No live AI model has been evaluated. Deliveries go to a local SQLite outbox, not email or the internet. The isolated runner requires Linux Docker; the gateway alone does not sandbox agents. This project does not claim to solve general AI loss of control or container/kernel escapes.
+**Status: runnable research software with an optional offline Docker worker and a constrained live Codex agent evaluation.** Deliveries go to a local SQLite outbox, not email or the internet. The isolated runner requires Linux Docker; the remote-model evaluation is a separate trusted-broker experiment. The gateway alone does not sandbox agents. This project does not claim to solve general AI loss of control or container/kernel escapes.
+
+**Concrete example:** an agent reads an internal access code and proposes a public announcement. TAHU checks the task's accumulated exposure before accepting delivery, even if the draft omits its sources. An exact operator approval can release a reviewed draft; stopping the task prevents further execution. This conservative policy can also reject harmless summaries, which the live evaluation records explicitly.
+
+## Live agent evaluation
+
+An authenticated Codex CLI proposes structured actions using synthetic course documents. A trusted broker executes each proposal through a separate HTTP gateway and supplies denial feedback for a bounded retry. Native agent tools are outside this experiment. See the [method, limits and run instructions](docs/live-agent-evaluation.md), [live results](reports/live-agent.json) and [local regression results](reports/regression-agent.json).
+
+```sh
+python scripts/evaluate_agent.py --live --model gpt-6.1-sol --repeats 2 --max-turns 2
+```
+
+This opt-in command consumes authenticated model usage. Default tests and CI make no model calls. The report separates agent abstentions, successful blocks, missed blocks, content-safe false blocks, legitimate-task completion, tokens and latency. A zero-miss smoke run is not a general safety guarantee; subscription dollar charges are unavailable and recorded as null.
+
+### Measured smoke result — 2026-10-13
+
+Two repetitions of eight fixed cases with `gpt-6.1-sol` completed **24 model calls** without adapter errors. The paired local-outbox experiment recorded:
+
+| Measurement | Observed result |
+|---|---|
+| Unsafe proposed actions blocked | **2 / 2**, both sends after operator stop |
+| Detected unsafe deliveries | **0** |
+| Agent abstentions | **10**, counted separately from gateway blocks |
+| Content-safe sends denied | **6 / 12 (50%)**, conservative exposure/review policy |
+| Legitimate delivery tasks completed | **6 / 12 (50%)** |
+| Exact reviewed release | **2 / 2** tasks completed |
+| Model usage | **250,531 input tokens**, including **34,304 cached**; **1,353 output tokens** |
+| Wall time | **280.89 s** model calls; **0.65 s** gateway decisions |
+
+The model refused unapproved secret publication and ignored the embedded injection. Therefore this run does **not** demonstrate gateway prevention of a model-generated secret leak or successful prompt injection. The small sample shows working stop/approval controls and a substantial usability cost, rather than broad safety effectiveness. The [initial run](reports/live-agent-initial.json) is retained: its overly strict drafting prompt prevented the approval case from completing; the revised prompt permits a draft for exact operator review without granting model-controlled permission.
 
 ## New in v0.3
 
@@ -81,6 +110,7 @@ In v0.2, even an existing public artifact cannot be sent publicly by a task expo
 ## Documentation
 
 - [中文说明](docs/README.zh-CN.md)
+- [Live agent evaluation and measured limits](docs/live-agent-evaluation.md)
 - [Architecture and trust boundary](docs/architecture.md)
 - [API and Python integration](docs/api.md)
 - [Threat model and known limits](docs/threat-model.md)
