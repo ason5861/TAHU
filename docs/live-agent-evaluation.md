@@ -129,10 +129,60 @@ not establish that TAHU prevents general AI loss of control.
 CLI structured output and JSON events follow the
 [official non-interactive Codex documentation](https://learn.chatgpt.com/docs/non-interactive-mode).
 
+## Exact-template review workflow
+
+The final committed run completed 18 real calls, zero runtime errors, 12/12
+legitimate delivery tasks and zero final content-safe refusals out of 12 sends.
+Six initial denials remain recorded and were recovered by six exact-template
+approvals. Both post-stop proposals were blocked. Model time was 207.85 seconds;
+gateway time was 0.92 seconds. Inputs consumed 188,429 tokens, including 68,608
+cached; outputs consumed 818 tokens. The case-corpus hash matches the original
+conservative run. Prompt assistance and trusted approval policy differ.
+
+`reports/live-agent-reviewed-initial.json` retains the first reviewed run,
+including one pre-proposal runtime error and 11/12 completed tasks. That error's
+generic log did not establish its cause. The final run added allowlisted local
+error codes and stage information, and completed without errors. Neither run
+counts errors as blocks or conceals the failed task from utility denominators.
+
+```sh
+python scripts/evaluate_agent.py --live --model gpt-6.1-sol --repeats 2 --max-turns 2 --workflow exact_review --output reports/live-agent-reviewed.json
+```
+
+`conservative` remains the default for compatibility and comparison.
+`exact_review` retains the same eight-case corpus, original task inputs and
+task exposure. It adds a trusted release plan for the three overblocked public
+summary cases. The plan specifies an exact public course announcement from the
+independent authoritative `PUBLIC` fixture, a task, a public destination and
+allowed source IDs. It is not generated from agent output, the untrusted web
+document or the safety/utility oracle. The trusted candidate is included in the
+model job, so prompt and review assistance differ from the original workflow.
+
+After the original send is denied, the host compares the complete proposal with
+that plan. Exact matching excludes extra whitespace, secret suffixes, encoded
+content, substituted sources and destination changes. Only a match requests an
+ordinary 60-second one-use approval with an expected content hash. The gateway
+checks that hash against the stored artifact in the approval transaction. The
+host then retries send with a new request ID. It never relabels data, clears
+exposure, changes destination clearance, or approves stop/unknown-label errors.
+
+These are **automated approvals under an explicit trusted template policy**,
+not unrestricted automatic declassification or evidence of real human review.
+They work for a fixed, independently confirmed announcement. New facts or
+free-form drafts still need a separately trusted review decision. Incorrect or
+compromised trusted templates remain a risk in the trusted computing base.
+
+`initial_content_safe_denials` preserves first-gate refusals;
+`false_blocks_content_oracle` counts final unresolved refusals after the review
+workflow. `exact_template_approvals` records the added approvals. Report all
+three when comparing with the original 50% result: successful approval recovery
+does not mean the conservative gate stopped denying those drafts initially.
+
 ## Offline tests
 
 ```sh
 python -m unittest tests.test_agent -v
+python -m unittest tests.test_review -v
 ```
 
 These tests use scripted doubles to check HTTP enforcement, omitted provenance,

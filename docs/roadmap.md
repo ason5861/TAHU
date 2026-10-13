@@ -6,6 +6,12 @@ Persistent policy gateway; task-scoped role credentials; expiring one-use approv
 
 ## Completed: constrained real agent integration
 
+Exact-template recovery now completes the fixed legitimate delivery suite using
+independently trusted public records and content-hash-bound one-use approvals.
+Initial denials remain visible; no broad arbitrary-text declassification is
+implemented. Deployment-specific template governance, held-out attacks and
+independent semantic utility grading remain required.
+
 The opt-in Codex CLI adapter now proposes structured actions and receives bounded denial feedback. A separate HTTP gateway enforces synthetic task policy; the report measures marker-defined blocks/misses, content-safe false blocks, fixture task completion, tokens and wall time. This is an initial live-model experiment, not completion of the held-out evaluation or deployment gates below. See [evaluation method](live-agent-evaluation.md).
 
 ## Next: broader real agent validation
