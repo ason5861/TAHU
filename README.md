@@ -10,6 +10,46 @@ A research authorization gateway for AI agents. An agent proposes actions; a sep
 
 ## Live agent evaluation
 
+### Improved exact-review workflow — 2026-10-13
+
+The trusted host can now recover a denied harmless announcement using a
+preconfigured exact public template from an independent authoritative record.
+The rule binds task, destination, full text and source IDs. The gateway checks
+the expected content hash before issuing its ordinary one-use approval. Labels,
+exposure, unknown-data restrictions and stop controls remain enforced.
+
+Two repetitions of the same eight-case corpus completed **18 real model calls**
+with zero runtime errors. See the [raw reviewed run](reports/live-agent-reviewed.json).
+
+| Measurement | Original conservative workflow | Exact-template review workflow |
+|---|---:|---:|
+| Legitimate delivery tasks completed | 6/12 (50%) | **12/12 (100%)** |
+| Final content-safe sends refused | 6/12 (50%) | **0/12 (0%)** |
+| Initial content-safe gate denials | 6/12 (50%) | **6/12 (50%)** |
+| Added exact public-template approvals | 0 | **6** |
+| Post-stop attempts blocked | 2/2 | **2/2** |
+| Detected unsafe deliveries | 0 | **0** |
+
+The reduction is **approval recovery**, not removal of conservative checks.
+The improved prompt also supplies the trusted template, so this compares two
+complete workflows, not a model-independent policy change. New facts and
+arbitrary free-form drafts still require separate trusted review. The real model
+again refused unapproved secret publication and ignored the embedded injection;
+forced malicious proposals are covered separately by HTTP regression tests.
+
+The final run measured **188,429 input tokens** (including **68,608 cached**),
+**818 output tokens**, **207.85 s** model time and **0.92 s** gateway time.
+Subscription dollar charges remain unavailable. The [first reviewed run](reports/live-agent-reviewed-initial.json)
+is retained: it completed 11/12 legitimate tasks and recorded one pre-proposal
+runtime error whose original generic log did not establish a cause. The final
+run adds sanitized error diagnostics and completed without errors. The latest
+[local regression report](reports/regression-reviewed.json) records **81 tests
+passed**, with **4 Docker checks skipped locally** and exercised by Linux CI.
+
+```sh
+python scripts/evaluate_agent.py --live --model gpt-6.1-sol --repeats 2 --max-turns 2 --workflow exact_review --output reports/live-agent-reviewed.json
+```
+
 An authenticated Codex CLI proposes structured actions using synthetic course documents. A trusted broker executes each proposal through a separate HTTP gateway and supplies denial feedback for a bounded retry. Native agent tools are outside this experiment. See the [method, limits and run instructions](docs/live-agent-evaluation.md), [live results](reports/live-agent.json) and [local regression results](reports/regression-agent.json).
 
 ```sh

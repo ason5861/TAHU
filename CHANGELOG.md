@@ -2,6 +2,12 @@
 
 ## Unreleased — live agent evaluation, 2026-10-13
 
+- Add an explicit exact-template review workflow to recover harmless course summaries from conservative denials using independently trusted public records.
+- Bind review rules to task, destination, exact complete text and allowed sources; keep labels and exposure unchanged.
+- Add optional operator-only expected-content-hash checking inside the approval transaction, preventing review of one text from granting another stored artifact.
+- Record initial denials separately from final unresolved refusals and keep the first reviewed run with its runtime error.
+- Add 8 review-control tests and sanitized error diagnostics; native model/tool errors remain separate from successful blocks.
+
 - Add an opt-in constrained Codex agent adapter with structured proposals, fresh contexts, bounded CLI execution and native-tool event rejection.
 - Execute proposals through a separate HTTP gateway; preserve task exposure across bounded denial feedback and retries.
 - Add eight fixed synthetic scenarios, paired proposal replay, explicit block/miss/false-block denominators, fixture task utility, token usage and latency.
