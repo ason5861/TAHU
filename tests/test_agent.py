@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from tahu.agent import AgentError, parse_events, validate_proposal
+from tahu.agent import AgentError, error_code, parse_events, validate_proposal
 from tahu.evaluation import INJECTION, SECRET, assess_utility, cases, content_oracle, run_evaluation, summarize
 
 
@@ -19,6 +19,11 @@ def events(value=None, extra=None):
 
 
 class AgentParsingTests(unittest.TestCase):
+    def test_error_diagnostics_never_publish_arbitrary_exception_text(self):
+        self.assertEqual(error_code(AgentError("SYNTHETIC PRIVATE ERROR TEXT")), "proposal_or_gateway_failed")
+        outer = AgentError("live_agent_run_failed")
+        outer.__cause__ = AgentError("native_tool_use_not_permitted")
+        self.assertEqual(error_code(outer), "native_tool_use_not_permitted")
     def test_structured_completed_run_with_usage(self):
         value, usage = parse_events(events())
         self.assertEqual(value["destination"], "public")
