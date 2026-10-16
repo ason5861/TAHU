@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="140" viewBox="0 0 600 140" role="img" aria-labelledby="title desc">
+  <title id="title">TAHU — agent authorization gateway</title>
+  <desc id="desc">A draft passes through an authorization gate before reaching a mailbox.</desc>
+  <rect width="600" height="140" rx="18" fill="#101827"/>
+  <g fill="none" stroke="#83e1c5" stroke-width="4" stroke-linejoin="round">
+    <path d="M25 51h28v38H25zM31 61h16M31 70h12M60 70h20"/>
+    <path d="M88 44l22 8v20c0 16-22 25-22 25s-22-9-22-25V52z" fill="#101827"/>
+    <path d="M77 70l8 8 15-19M117 70h16M140 56h38v29h-38zM140 56l19 16 19-16"/>
+  </g>
+  <text x="210" y="72" fill="#f3f6fc" font-size="40" font-family="sans-serif" font-weight="700">TAHU</text>
+  <text x="211" y="100" fill="#b8c8dc" font-size="17" font-family="sans-serif">Check permission before delivery.</text>
+</svg>
