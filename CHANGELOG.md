@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — independent mail comparison, 2026-10-16
+
+- Add frozen development/held-out synthetic mail tasks, independent real-model whitelist, simulated-review and TAHU runs, plus a loopback HTTP page and SMTP receiver.
+- Verify received message bytes and reconcile deliveries even after a lost SMTP acknowledgement; record actual effects, model refusals, runtime errors, utility, review burden, tokens and latency separately.
+- Publish both live runs, including the initial reviewer label-contract ambiguity. Final free-text TAHU completion is 2/4, below the predeclared 75% target; no unsafe model proposals occurred, so no added live interception benefit is established.
+- Add six offline transport/accounting regression tests and a one-command no-model mail demonstration. Preserve all gate and exact-template approval rules.
+- Add a lightweight SVG mark, adoption instructions, owner-only license choices and unpublished community-feedback drafts.
+
 ## Unreleased — live agent evaluation, 2026-10-13
 
 - Add an explicit exact-template review workflow to recover harmless course summaries from conservative denials using independently trusted public records.

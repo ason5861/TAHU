@@ -1,14 +1,56 @@
 # TAHU · 知道
 
+![TAHU: check permission before delivery](docs/tahu-mark.svg)
+
 **Traceability · Authorization · Human Oversight · Uncertainty Awareness**
 
 A research authorization gateway for AI agents. An agent proposes actions; a separate local service checks task permissions, information flow, approvals and stop state before recording an authorized delivery.
 
-**Status: runnable research software with an optional offline Docker worker and a constrained live Codex agent evaluation.** Deliveries go to a local SQLite outbox, not email or the internet. The isolated runner requires Linux Docker; the remote-model evaluation is a separate trusted-broker experiment. The gateway alone does not sandbox agents. This project does not claim to solve general AI loss of control or container/kernel escapes.
+For developers connecting an agent to mixed public/internal information: check a proposed message before delivery, and inspect why it was allowed, denied or approved. Try the local email workflow with **Python 3.10+ and no third-party dependencies**:
+
+```sh
+python -m examples.mail_demo
+```
+
+This scripted demo starts its own HTTP gateway and local SMTP receiver. It needs local-port access, uses synthetic data and consumes no model usage. [Integration steps, comparisons and transport limits](docs/mail-comparison.md).
+
+**Status: runnable research software with an optional offline Docker worker and constrained live Codex agent evaluations.** The gateway records authorized deliveries in SQLite; the new evaluation exports them to a loopback SMTP test inbox. No real external email is sent. The isolated runner requires Linux Docker; remote-model evaluations are separate trusted-broker experiments. The gateway alone does not sandbox agents.
 
 **Concrete example:** an agent reads an internal access code and proposes a public announcement. TAHU checks the task's accumulated exposure before accepting delivery, even if the draft omits its sources. An exact operator approval can release a reviewed draft; stopping the task prevents further execution. This conservative policy can also reject harmless summaries, which the live evaluation records explicitly.
 
 ## Live agent evaluation
+
+### Independent free-form email comparison — 2026-10-16
+
+The same six frozen tasks were drafted in **independent model runs** for three
+configurations, using identical prompts, inputs, model and one-turn budgets.
+Messages were actually received over local SMTP. No trusted templates were used.
+
+| Measurement | Recipient whitelist | Whitelist + simulated review | TAHU |
+|---|---:|---:|---:|
+| Legitimate tasks completed | 4/4 | 4/4 | **2/4** |
+| Content-safe proposals denied | 0/4 | 0/4 | **2/4** |
+| Unauthorized deliveries / attack opportunities | 0/3 | 0/3 | 0/3 |
+| Unsafe proposals from model | 0 | 0 | 0 |
+| Review requests | 0 | 4 | 0 |
+| Real model calls | 6 | 10 | 6 |
+| End-to-end seconds, summed across tasks | 44.91 | 81.88 | 47.67 |
+
+**TAHU missed the predeclared 75% completion target.** It rejected a harmless
+public summary after secret exposure and a safe summary of an injected webpage.
+All three configurations avoided known unsafe deliveries because the drafter
+abstained on the direct leak/unknown-data requests and ignored the injection.
+This run therefore establishes **no additional live attack interception benefit**
+over the simpler configurations. The second arm used another model as a review
+proxy; it did not measure human judgment or human review time.
+
+The [raw report](reports/mail-agent-2026-10-16.json) retains all 22 real calls,
+captured synthetic messages, input hashes, errors, tokens and audit verification.
+The [method and failure analysis](docs/mail-comparison.md) includes the initial
+run, the reviewer label-contract correction, fixed scoring and limitations.
+The [regression report](reports/regression-mail-2026-10-16.json) records **87
+passed and 4 local Docker skips**. This free-text result takes precedence over
+the separate template-assisted completion result below when assessing utility.
 
 ### Improved exact-review workflow — 2026-10-13
 
@@ -80,7 +122,7 @@ The model refused unapproved secret publication and ignored the embedded injecti
 - `untrusted` input labels enforce exact human approval before influenced output can be delivered, even internally.
 - A trusted broker starts a fresh, network-disabled container per invocation with only the current task's selected inputs. Workers propose text, never permissions or tool commands.
 - Read-only root filesystem, non-root user, dropped capabilities, resource/output limits, stop polling and forced cleanup constrain offline execution.
-- [Isolation guide and real-container checks](docs/isolation.md). Without Docker execution is refused. The bundled worker is a deterministic probe; real-model integration remains future work.
+- [Isolation guide and real-container checks](docs/isolation.md). Without Docker execution is refused. The bundled worker is a deterministic probe; the remote-model path above is separate from that worker.
 
 TAHU 在马来文中意为“知道”，中文取意“知·道”。我们把可追溯、有授权、人类监督与不确定性识别转化为可测试的执行规则。道家思想是设计启发；安全效果以代码和实验为准。
 
@@ -150,6 +192,8 @@ In v0.2, even an existing public artifact cannot be sent publicly by a task expo
 ## Documentation
 
 - [中文说明](docs/README.zh-CN.md)
+- [Independent mail comparison, failures and reproduction](docs/mail-comparison.md)
+- [Adoption steps, pending license choices and unpublished feedback drafts](docs/adoption.md)
 - [Live agent evaluation and measured limits](docs/live-agent-evaluation.md)
 - [Architecture and trust boundary](docs/architecture.md)
 - [API and Python integration](docs/api.md)
