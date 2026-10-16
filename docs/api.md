@@ -62,6 +62,20 @@ Each request ID identifies one exact proposal. Retry the same body with the same
 
 Approval permits an exact content release; the authenticated operator must inspect that content before approving. `content_hash` in the response identifies the bound artifact text. Approvals cannot add a destination outside the original policy.
 
+Trusted reviewers may additionally send `expected_content_hash`, the 64-character
+lowercase SHA-256 from `tahu.core.digest(reviewed_text)`. The gateway compares it
+with the stored immutable artifact inside the approval transaction and refuses
+any mismatch before creating a grant. Omit it for legacy clients. This digest is
+over TAHU's canonical JSON encoding of the string, not raw UTF-8 text bytes.
+
+`tahu.review.TemplateReviewer` uses this field for preconfigured exact-template
+rules bound to a task, destination and allowed source IDs. Only independently
+trusted records may supply a rule; the model, its draft and untrusted documents
+cannot create rules. A matched rule still uses the ordinary expiring, one-use
+operator approval. Stop, unknown classification and destination policy remain
+enforced. After approval, use a **new** send request ID; the original denial
+receipt remains denied.
+
 ```json
 {"task":"report"}
 ```
@@ -80,4 +94,4 @@ if not decision["allowed"]:
     print(decision["reason"])
 ```
 
-The trusted orchestrator provisions fresh contexts and mediates the model's only tool channel. Do not put `operator_token` in model context, tool arguments or agent-readable files. No model-provider SDK or live provider call is included in this release. A transport failure means execution is unconfirmed; use exact-ID retry, never fallback direct execution.
+The trusted orchestrator provisions fresh contexts and mediates the model's only tool channel. Do not put `operator_token` in model context, tool arguments or agent-readable files. The optional Codex CLI adapter and [live evaluation](live-agent-evaluation.md) exercise this contract with synthetic data. A transport failure means execution is unconfirmed; use exact-ID retry, never fallback direct execution.

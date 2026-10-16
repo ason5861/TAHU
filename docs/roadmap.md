@@ -4,7 +4,17 @@
 
 Persistent policy gateway; task-scoped role credentials; expiring one-use approvals; restart-safe stop; local outbox idempotency; transactional rollback; redacted audit chain; regression tests; separate-process HTTP demo; preserved v0.1 reference.
 
-## Next: v0.3 — real agent integration
+## Completed: constrained real agent integration
+
+Exact-template recovery now completes the fixed legitimate delivery suite using
+independently trusted public records and content-hash-bound one-use approvals.
+Initial denials remain visible; no broad arbitrary-text declassification is
+implemented. Deployment-specific template governance, held-out attacks and
+independent semantic utility grading remain required.
+
+The opt-in Codex CLI adapter now proposes structured actions and receives bounded denial feedback. A separate HTTP gateway enforces synthetic task policy; the report measures marker-defined blocks/misses, content-safe false blocks, fixture task completion, tokens and wall time. This is an initial live-model experiment, not completion of the held-out evaluation or deployment gates below. See [evaluation method](live-agent-evaluation.md).
+
+## Next: broader real agent validation
 
 1. Integrate one model provider through the client interface. Keep provider keys in a trusted orchestrator and use synthetic data.
 2. Enforce fresh model contexts per task. Add tests that deliberately attempt to carry restricted memory into a public task.
