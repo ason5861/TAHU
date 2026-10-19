@@ -1,5 +1,6 @@
 """Offline transport/control demonstration, explicitly no live model calls."""
 import json
+import argparse
 
 from tahu.mail_evaluation import run_mail_evaluation
 
@@ -27,7 +28,10 @@ class ScriptedMailDemo:
 
 
 def main():
-    report = run_mail_evaluation(ScriptedMailDemo())
+    parser = argparse.ArgumentParser(description="Scripted local mail transport demonstration")
+    parser.add_argument("--workflow", choices=("full", "public_context"), default="full")
+    args = parser.parse_args()
+    report = run_mail_evaluation(ScriptedMailDemo(), workflow=args.workflow)
     print("OFFLINE SCRIPTED DEMO: no live model calls; synthetic data; loopback HTTP/SMTP only.")
     for arm, summary in report["summary"].items():
         print(json.dumps({"arm": arm, "delivered": summary["smtp_deliveries"],
