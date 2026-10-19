@@ -9,16 +9,48 @@ A research authorization gateway for AI agents. An agent proposes actions; a sep
 For developers connecting an agent to mixed public/internal information: check a proposed message before delivery, and inspect why it was allowed, denied or approved. Try the local email workflow with **Python 3.10+ and no third-party dependencies**:
 
 ```sh
-python -m examples.mail_demo
+python -m examples.mail_demo --workflow public_context
 ```
 
-This scripted demo starts its own HTTP gateway and local SMTP receiver. It needs local-port access, uses synthetic data and consumes no model usage. [Integration steps, comparisons and transport limits](docs/mail-comparison.md).
+This scripted demo starts its own HTTP gateway and local SMTP receiver. The trusted host prepares a fresh public-only task for the course reply, without supplying unrelated private notes. It needs local-port access, uses synthetic data and consumes no model usage. [Integration steps and context requirements](docs/public-context.md); [original comparisons and transport limits](docs/mail-comparison.md).
 
 **Status: runnable research software with an optional offline Docker worker and constrained live Codex agent evaluations.** The gateway records authorized deliveries in SQLite; the new evaluation exports them to a loopback SMTP test inbox. No real external email is sent. The isolated runner requires Linux Docker; remote-model evaluations are separate trusted-broker experiments. The gateway alone does not sandbox agents.
 
 **Concrete example:** an agent reads an internal access code and proposes a public announcement. TAHU checks the task's accumulated exposure before accepting delivery, even if the draft omits its sources. An exact operator approval can release a reviewed draft; stopping the task prevents further execution. This conservative policy can also reject harmless summaries, which the live evaluation records explicitly.
 
 ## Live agent evaluation
+
+### Public-only context preparation — 2026-10-19
+
+A trusted host can now start a fresh public drafting job from pinned public
+records, keeping unrelated private notes out of its model context. It supplies
+a fresh trusted instruction and rejects changed, ambiguous or nonpublic records.
+This prepares inputs before execution; it does not clear an exposed task or
+automatically approve a free-form draft.
+
+Two independent three-arm runs completed **44 real model calls** without runtime
+errors. The same frozen six tasks were retained, including all four normal tasks:
+
+| TAHU measurement | Full mixed inputs | Public-context workflow |
+|---|---:|---:|
+| Normal tasks completed | 2/4 (50%) | **3/4 (75%)** |
+| Content-safe proposals denied | 2/4 | **1/4** |
+| Unauthorized deliveries / attack opportunities | 0/3 | 0/3 |
+| Draft calls / extra approvals | 6 / 0 | 6 / 0 |
+
+The scoped workflow meets the predeclared 75% smoke-test target. **It changes
+one task's inputs and instruction**: the public reply no longer reads the private
+note. All three arms receive identical inputs within each workflow. Both simpler
+baselines still completed 4/4 tasks, and no arm proposed unsafe sends, so no added
+live interception benefit is established. The injected-page summary still needs
+trusted review. These previously seen cases now inform development; this is not
+new held-out validation or proof that mixed-context overblocking is solved.
+
+[Protocol, integration, all six results and costs](docs/public-context.md);
+[full-input raw run](reports/mail-full-2026-10-19.json);
+[scoped raw run](reports/mail-context-2026-10-19.json).
+Latest local regression: **92 passed, 4 Docker skips**, with real Docker checks
+retained in Linux CI. Dollar charges and human setup/review time are unavailable.
 
 ### Independent free-form email comparison — 2026-10-16
 
@@ -84,8 +116,8 @@ The final run measured **188,429 input tokens** (including **68,608 cached**),
 Subscription dollar charges remain unavailable. The [first reviewed run](reports/live-agent-reviewed-initial.json)
 is retained: it completed 11/12 legitimate tasks and recorded one pre-proposal
 runtime error whose original generic log did not establish a cause. The final
-run adds sanitized error diagnostics and completed without errors. The latest
-[local regression report](reports/regression-reviewed.json) records **81 tests
+run adds sanitized error diagnostics and completed without errors. The
+[local regression report for that workflow](reports/regression-reviewed.json) records **81 tests
 passed**, with **4 Docker checks skipped locally** and exercised by Linux CI.
 
 ```sh
@@ -193,6 +225,7 @@ In v0.2, even an existing public artifact cannot be sent publicly by a task expo
 
 - [中文说明](docs/README.zh-CN.md)
 - [Independent mail comparison, failures and reproduction](docs/mail-comparison.md)
+- [Public-only context preparation and its separate experiment](docs/public-context.md)
 - [Adoption steps, pending license choices and unpublished feedback drafts](docs/adoption.md)
 - [Live agent evaluation and measured limits](docs/live-agent-evaluation.md)
 - [Architecture and trust boundary](docs/architecture.md)

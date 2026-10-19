@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — public context preparation, 2026-10-19
+
+- Add host-configured public record ID/hash pins and a fresh trusted request to minimize inputs before drafting; changed, ambiguous or nonpublic records fail closed.
+- Add an opt-in public-context mail workflow applied equally to three independent model arms. Keep the frozen original corpus, full-input control and four-task utility denominator.
+- Record the changed input/instruction scope explicitly; previously held-out failures now inform development, so the new workflow is not presented as unseen validation.
+- Add five context/transport tests, a scoped offline demo option and Chinese documentation updates. Core authorization, exact approval and stop rules are unchanged.
+- Publish full-input and scoped runs with 44 real calls and zero runtime errors: TAHU completion changes from 2/4 to 3/4 under the explicit input change; one safe webpage refusal remains, and no added live attack interception benefit is established.
+
 ## Unreleased — independent mail comparison, 2026-10-16
 
 - Add frozen development/held-out synthetic mail tasks, independent real-model whitelist, simulated-review and TAHU runs, plus a loopback HTTP page and SMTP receiver.
