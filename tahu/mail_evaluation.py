@@ -17,6 +17,7 @@ from urllib.request import ProxyHandler, build_opener
 
 from .agent import AgentError, error_code, validate_proposal
 from .client import Client
+from .context import PublicContextPlan
 from .evaluation import local_gateway
 from .localmail import local_mailbox
 
@@ -142,10 +143,19 @@ def _summary(rows, cases):
     return result
 
 
-def run_mail_evaluation(provider, repeats=1, progress=None):
+def run_mail_evaluation(provider, repeats=1, progress=None, workflow="full"):
     if type(repeats) is not int or not 1 <= repeats <= 3:
         raise ValueError("invalid_mail_repeats")
+    if workflow not in ("full", "public_context"):
+        raise ValueError("invalid_mail_workflow")
     corpus, corpus_hash = load_corpus()
+    plans = {}
+    plan_hash = None
+    if workflow == "public_context":
+        raw_plans = (ROOT / "examples/mail_public_context.json").read_bytes()
+        plan_hash = hashlib.sha256(raw_plans).hexdigest()
+        for name, plan in json.loads(raw_plans)["plans"].items():
+            plans[name] = PublicContextPlan(plan["request"], tuple(tuple(pin) for pin in plan["records"]))
     rows = []
     with local_gateway() as (operator, url), local_mailbox() as mailbox, fixture_web(corpus) as web_url:
         for repeat in range(repeats):
@@ -173,6 +183,10 @@ def run_mail_evaluation(provider, repeats=1, progress=None):
                                     raise AgentError("fixture_web_limit")
                                 document["text"] = raw.decode("utf-8")
                                 row["web_reads"].append({"source": "web", "transport": "loopback_http", "sha256": hashlib.sha256(raw).hexdigest()})
+                        if case["id"] in plans:
+                            job = plans[case["id"]].job(job["documents"])
+                        row["context_plan_applied"] = case["id"] in plans
+                        row["supplied_source_ids"] = [doc["id"] for doc in job["documents"]]
                         row["draft_input_sha256"] = hashlib.sha256(json.dumps(job, sort_keys=True).encode()).hexdigest()
                         if arm == "tahu":
                             task = case["id"] + "_" + str(repeat)
@@ -180,7 +194,7 @@ def run_mail_evaluation(provider, repeats=1, progress=None):
                                 "budget": 20, "attempt_limit": 40, "ttl": 1800,
                                 "destinations": {"public": [], "internal": ["restricted"]}, "artifacts": job["documents"]})
                             agent = Client(url, identity["token"])
-                            for index, document in enumerate(case["documents"]):
+                            for index, document in enumerate(job["documents"]):
                                 read = agent.step({"request_id": "read_" + str(index), "op": "read", "id": document["id"]})
                                 if not read["allowed"]:
                                     raise AgentError("fixture_read_failed")
@@ -200,7 +214,7 @@ def run_mail_evaluation(provider, repeats=1, progress=None):
                             elif arm == "simulated_review":
                                 row["review_requested"] = True
                                 phase = "review"
-                                reviewed = provider.propose(reviewer_job(case, draft))
+                                reviewed = provider.propose(reviewer_job(dict(case, documents=job["documents"]), draft))
                                 row["calls"].append(_usage(reviewed))
                                 row["review_seconds"] = reviewed["elapsed_seconds"]
                                 verdict = validate_proposal(reviewed["proposal"])
@@ -252,9 +266,10 @@ def run_mail_evaluation(provider, repeats=1, progress=None):
                 row["receiver_message_count"] = len(matches)
                 row["delivered"] = bool(matches)
     summaries = _summary(rows, {case["id"]: case for case in corpus["cases"]})
-    sources = ("tahu/mail_evaluation.py", "tahu/localmail.py", "tahu/agent.py", "tahu/core.py", "tahu/server.py")
+    sources = ("tahu/mail_evaluation.py", "tahu/localmail.py", "tahu/agent.py", "tahu/core.py", "tahu/server.py", "tahu/context.py")
     return {"schema_version": 1, "generated_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "corpus_sha256": corpus_hash, "corpus": corpus, "repeats": repeats,
+            "workflow": workflow, "context_plan_sha256": plan_hash,
             "protocol": {"draft_calls_per_task": 1, "max_turns": 1, "provider_retries": 0,
                          "independent_runs": True, "template_assistance": False,
                          "review": "Separate model simulates operator review; no real human review measured",
@@ -263,7 +278,7 @@ def run_mail_evaluation(provider, repeats=1, progress=None):
             "summary": summaries, "rows": rows, "captured_mail": captured,
             "audit": audit, "external_deliveries": 0,
             "limitations": ["One fixed small developer-authored corpus, not an independent safety benchmark",
-                            "Held-out cases were not used for live prompt tuning; author still knows their contents",
+                            "Original held-out cases informed context-plan development; this new workflow is development re-evaluation, not new held-out evidence",
                             "Reviewer is a model proxy, not measured human judgment, time or effort",
                             "Same drafter instructions in all arms; model refusal must not be credited to the gateway",
                             "Unknown-classification delivery is a policy violation, distinct from a literal secret leak",
