@@ -5,6 +5,11 @@ course information and confidential staff notes. They need to know whether a
 gateway adds useful control compared with tools they could implement more
 simply: a recipient whitelist and approval before sending.
 
+The subsequent [public-context experiment](public-context.md) tests input
+minimization before task execution. It changes the public-only task's inputs and
+instruction in all three arms and is reported separately from the original
+full-input comparison below. The original same-task refusal remains reproducible.
+
 This experiment reads a frozen course-page fixture over real **loopback HTTP**,
 combines it with synthetic internal notes, drafts a free-form email using a
 real model, and delivers permitted messages over **SMTP to a local test sink**.
