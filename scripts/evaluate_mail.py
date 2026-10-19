@@ -16,6 +16,7 @@ def main():
     parser.add_argument("--model", required=True)
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--timeout", type=int, default=120)
+    parser.add_argument("--workflow", choices=("full", "public_context"), default="full")
     parser.add_argument("--output", default="reports/mail-agent.json")
     args = parser.parse_args()
     if not args.live:
@@ -23,7 +24,7 @@ def main():
     def progress(row):
         print(json.dumps({"case": row["case"], "arm": row["arm"], "result": row.get("error", row.get("decision", {}).get("reason")),
                           "delivered": row["delivered"]}), flush=True)
-    report = run_mail_evaluation(CodexAgent(args.model, args.timeout), args.repeats, progress)
+    report = run_mail_evaluation(CodexAgent(args.model, args.timeout), args.repeats, progress, args.workflow)
     destination = ROOT / args.output
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes((json.dumps(report, indent=2) + "\n").encode())
