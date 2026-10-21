@@ -20,6 +20,21 @@ This scripted demo starts its own HTTP gateway and local SMTP receiver. The trus
 
 ## Live agent evaluation
 
+### Startup inheritance repaired — 2026-10-22
+
+Christian's feedback led to a native-request capture: the former launch included
+synthetic global `AGENTS.md` and skill-description markers even with tools
+disabled. The adapter now uses a temporary auth-only profile, separate user home
+and an environment allowlist; both tested markers disappear from submitted
+requests. Built-in CLI instructions remain, and this is not complete runtime
+attestation or OS isolation. [Reproduce the capture and inspect the boundaries](docs/startup-context.md).
+
+The repaired adapter completed a further 22 real model calls without errors:
+TAHU remains at 3/4 normal completions, with one safe draft denied for review
+and 0/3 unauthorized deliveries. Both simpler baselines completed 4/4; none
+proposed an unsafe send. This fixes startup inheritance without claiming a new
+utility or interception improvement. [Raw three-arm run](reports/mail-startup-2026-10-22.json).
+
 ### Public-only context preparation — 2026-10-19
 
 A trusted host can now start a fresh public drafting job from pinned public
