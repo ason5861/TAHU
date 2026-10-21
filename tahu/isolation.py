@@ -20,10 +20,10 @@ class IsolationError(RuntimeError):
     pass
 
 
-def _bounded_process(command, payload, timeout, active=lambda: True, limit=65536):
+def _bounded_process(command, payload, timeout, active=lambda: True, limit=65536, env=None):
     """Bound both pipes and wall time, including a worker that never reads stdin."""
     process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE, shell=False)
+                               stderr=subprocess.PIPE, shell=False, env=env)
     overflow = threading.Event()
     output = bytearray()
 

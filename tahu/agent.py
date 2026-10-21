@@ -4,6 +4,7 @@ Only synthetic evaluation inputs belong here. Credentials stay with the CLI;
 the model receives neither TAHU tokens nor operator capabilities.
 """
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -31,13 +32,48 @@ class AgentError(RuntimeError):
     """Sanitized adapter failure; never include provider stderr or credentials."""
 
 
+def proposal_environment(profile, user_home):
+    """Keep OS/network plumbing, exclude parent agent/session/provider overrides.
+
+    A separate user home also excludes ~/.agents/skills. This is startup input
+    minimization, not an OS filesystem or network isolation boundary.
+    """
+    allowed = {"SYSTEMROOT", "WINDIR", "COMSPEC", "PATH", "PATHEXT", "TEMP", "TMP",
+               "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+               "SSL_CERT_FILE", "SSL_CERT_DIR"}
+    env = {key: value for key, value in os.environ.items() if key.upper() in allowed}
+    env.update(CODEX_HOME=str(profile), HOME=str(user_home), USERPROFILE=str(user_home),
+               APPDATA=str(user_home / "AppData" / "Roaming"),
+               LOCALAPPDATA=str(user_home / "AppData" / "Local"))
+    return env
+
+
+def copy_cli_auth(profile):
+    """Copy only existing CLI file auth; never copy config, instructions or skills.
+
+    The private temporary profile is outside the model working directory and is
+    deleted after the call. Keyring-only profiles are deliberately unsupported;
+    do not silently fall back to the ordinary instruction-bearing profile.
+    """
+    source = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "auth.json"
+    try:
+        if source.stat().st_size > 1048576:
+            raise OSError("auth_file_limit")
+        data = source.read_bytes()
+        with (profile / "auth.json").open("xb") as stream:
+            os.chmod(stream.name, 0o600)
+            stream.write(data)
+    except OSError:
+        raise AgentError("isolated_cli_file_auth_unavailable") from None
+
+
 def error_code(exc):
     """Return only known local diagnostic codes, never exception/provider text."""
     known = {"invalid_proposal_fields", "invalid_proposal_values", "invalid_agent_event",
              "agent_turn_failed", "native_tool_use_not_permitted", "duplicate_completion",
              "incomplete_or_ambiguous_agent_run", "invalid_agent_proposal", "missing_agent_usage",
              "live_agent_run_failed", "worker_timeout", "worker_failed", "worker_output_limit",
-             "worker_pipe_not_closed", "agent_input_limit"}
+             "worker_pipe_not_closed", "agent_input_limit", "isolated_cli_file_auth_unavailable"}
     code = "proposal_or_gateway_failed"
     seen = set()
     while exc is not None and id(exc) not in seen:
@@ -99,7 +135,7 @@ def parse_events(raw):
 
 
 class CodexAgent:
-    """One fresh model context per proposal; built-in tools disabled.
+    """One isolated startup profile per proposal; built-in tools disabled.
 
     The broker executes the returned structured action through TAHU HTTP.
     This evaluates a constrained agent, not arbitrary native Codex tool access.
@@ -116,6 +152,17 @@ class CodexAgent:
         version = subprocess.run([self.executable, "--version"], capture_output=True,
                                  text=True, timeout=10, check=True)
         self.version = version.stdout.strip()
+
+    def command(self, directory, schema):
+        command = [self.executable, "exec", "--ignore-user-config", "--ephemeral",
+                   "--skip-git-repo-check", "--sandbox", "read-only", "--model", self.model,
+                   "--json", "--color", "never", "--output-schema", str(schema),
+                   "--cd", str(directory), "-c", "approval_policy=\"never\"",
+                   "-c", "web_search=\"disabled\"", "-c", "model_reasoning_effort=\"low\""]
+        for feature in ("shell_tool", "multi_agent", "apps", "plugins", "hooks",
+                        "browser_use", "computer_use", "image_generation"):
+            command.extend(["--disable", feature])
+        return command + ["-"]
 
     def propose(self, job):
         prompt = (
@@ -138,23 +185,24 @@ class CodexAgent:
         if len(prompt.encode()) > 65536:
             raise AgentError("agent_input_limit")
         with tempfile.TemporaryDirectory(prefix="tahu_agent_") as directory:
-            schema = Path(directory) / "proposal.schema.json"
+            root = Path(directory)
+            profile, user_home, work = root / "profile", root / "user", root / "work"
+            for path in (profile, user_home, work):
+                path.mkdir(mode=0o700)
+            copy_cli_auth(profile)
+            env = proposal_environment(profile, user_home)
+            schema = work / "proposal.schema.json"
             schema.write_text(json.dumps(PROPOSAL_SCHEMA), encoding="utf-8")
-            command = [self.executable, "exec", "--ignore-user-config", "--ephemeral",
-                       "--skip-git-repo-check", "--sandbox", "read-only", "--model", self.model,
-                       "--json", "--color", "never", "--output-schema", str(schema),
-                       "--cd", directory, "-c", "approval_policy=\"never\"",
-                       "-c", "web_search=\"disabled\"", "-c", "model_reasoning_effort=\"low\""]
-            for feature in ("shell_tool", "multi_agent", "apps", "plugins", "hooks",
-                            "browser_use", "computer_use", "image_generation"):
-                command.extend(["--disable", feature])
-            command.append("-")
+            command = self.command(work, schema)
             started = time.perf_counter()
             try:
-                raw = _bounded_process(command, prompt.encode(), self.timeout, limit=1048576)
+                raw = _bounded_process(command, prompt.encode(), self.timeout, limit=1048576, env=env)
                 proposal, usage = parse_events(raw)
             except (OSError, RuntimeError, ValueError) as exc:
                 raise AgentError("live_agent_run_failed") from exc
             return {"proposal": proposal, "usage": usage,
                     "elapsed_seconds": round(time.perf_counter() - started, 6),
-                    "model": self.model, "cli_version": self.version, "live": True}
+                    "model": self.model, "cli_version": self.version, "live": True,
+                    "startup": {"profile": "temporary_auth_only", "user_home": "temporary",
+                                "parent_environment": "os_network_allowlist",
+                                "runtime_context_attested": False}}
