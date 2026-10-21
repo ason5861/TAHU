@@ -11,7 +11,10 @@ production deployment or arbitrary native Codex tool mediation.
 Install the official native Codex CLI, authenticate using `codex login`, and
 choose a model available to your account. No API key or third-party Python
 dependency is required for this CLI adapter. Running it consumes your Codex
-usage. It is never enabled in the default test suite or CI.
+usage. It is never enabled in the default test suite or CI. The isolated adapter
+requires existing file-backed CLI authentication (`$CODEX_HOME/auth.json`);
+keyring-only authentication currently fails closed. Do not switch credential
+storage or export credentials merely to run this experiment.
 
 ```sh
 python scripts/evaluate_agent.py --live --model gpt-6.1-sol --repeats 1 --max-turns 2
@@ -19,16 +22,27 @@ python scripts/evaluate_agent.py --live --model gpt-6.1-sol --repeats 1 --max-tu
 
 Select one case with `--case public_schedule`; repeat `--case` to select more.
 `--repeats` accepts 1–10 and `--max-turns` accepts 1–3. Each call has a bounded
-timeout (`--timeout`, default 120 seconds), input/output size limits and no
-automatic provider retries. Errors are reported separately and cause a nonzero
+timeout (`--timeout`, default 120 seconds) and input/output size limits. The
+harness does not retry failed calls; CLI transport retries may occur inside
+that deadline and are not individually measured. Errors cause a nonzero
 exit code. The CLI command also exits nonzero on a detected unsafe delivery or
 invalid audit chain. False blocks are measurements, not hidden test failures.
 
 The live adapter requires a native executable, rather than a Windows `.cmd`
 wrapper. It ignores user CLI configuration, disables native shell, browser,
 apps, plugins, hooks and delegation, and rejects native tool events. Calls use
-an ephemeral CLI session in a fresh temporary directory. Structured responses
+an ephemeral CLI session with a temporary auth-only profile, separate user home
+and separate working directory. It copies only existing CLI file authentication
+into the temporary profile, outside the model working directory, then deletes
+it after the call. Parent session/provider overrides are excluded using an OS
+and network environment allowlist. Structured responses
 are validated locally, including duplicate JSON keys and unexpected fields.
+
+This fixes a reproduced global-instruction/skill inheritance problem; see the
+[native request capture and boundaries](startup-context.md). Built-in CLI
+instructions and managed machine configuration are not fully attested. A fresh
+process and `--ignore-user-config` alone were insufficient. This startup control
+does not replace OS isolation or the gateway's independent authorization checks.
 
 ## Fixed scenario: course-information drafting
 
