@@ -26,6 +26,46 @@ That rejection is expected, not a successful model completion. Missing or
 multiple requests fail the probe. No request body, headers or real user profile
 contents are published. The synthetic auth fixture is an empty JSON object.
 
+## Windows npm discovery repair (2026-10-24)
+
+Christian's follow-up identified a startup compatibility issue: Python's
+`shutil.which("codex")` can return npm's `codex.cmd`, which the adapter previously
+rejected immediately even when the native binary was installed. The adapter now
+resolves recognized Windows npm package layouts to an absolute native executable
+before preparing the isolated environment. It never executes or parses the shim,
+never launches a shell, and does not fall back to the ordinary Codex profile.
+Missing binaries, unsupported architectures, malformed/unrecognized package
+metadata and optional-package version mismatches fail closed. The host must
+trust its installed CLI and PATH; metadata is not a binary signature check.
+
+To reproduce with an installed native CLI on Windows, without login or model use:
+
+```sh
+python scripts/probe_cli_discovery.py --capture --output reports/cli-discovery.json
+```
+
+This creates a disposable npm-shaped directory (including spaces), a trap shim,
+synthetic package metadata and a copy of the already installed native binary.
+It verifies that PATH discovers the shim, the previous predicate would reject
+it, and the repaired adapter selects and launches the native binary instead.
+Four loopback captures then exercise the existing startup-context controls.
+It is not a fresh npm installation or a real-provider/model trial.
+
+The [raw smoke report](../reports/cli-discovery-2026-10-24.json) records CLI
+`0.163.0-alpha.11.2`: native startup succeeded, the trap shim was not executed,
+the legacy global/skill markers were present and the isolated markers absent,
+and every request exposed zero tools. The receiver deliberately returned 400.
+No real credentials, model calls or third-party deliveries were used.
+The user-home marker again lacked a positive control; absence is not a full
+runtime-context attestation. Existing safety policy was not relaxed.
+
+The [local regression](../reports/regression-cli-discovery-2026-10-24.json)
+ran 107 tests: 102 passed, four Docker checks and one symlink check skipped.
+Linux CI retains Docker validation and can exercise file symlinks. Architecture
+and optional-package variants are synthetic unit fixtures, not native ARM64
+execution evidence. Christian's review remains source/architecture review plus
+CtxWise static verification, not an executed Python trial or independent audit.
+
 ## Observed on Windows, 2026-10-22 (Asia/Kuala_Lumpur)
 
 Native CLI: `codex-cli 0.163.0-alpha.10.2`.
