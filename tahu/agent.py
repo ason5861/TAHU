@@ -5,9 +5,11 @@ the model receives neither TAHU tokens nor operator capabilities.
 """
 import json
 import os
+import platform
 import shutil
 import subprocess
 import tempfile
+import sys
 import time
 from pathlib import Path
 
@@ -30,6 +32,61 @@ PROPOSAL_SCHEMA = {
 
 class AgentError(RuntimeError):
     """Sanitized adapter failure; never include provider stderr or credentials."""
+
+
+def resolve_codex_executable():
+    """Resolve once in the trusted parent, never execute or parse npm shims.
+
+    npm installs are trusted host software, not an agent-controlled input. Only
+    recognized Windows package layouts are searched; no shell or recursive scan
+    is used. Package metadata checks are not a signature or integrity attestation.
+    """
+    found = shutil.which("codex")
+    if not found:
+        raise AgentError("native_codex_executable_required")
+    path = Path(found).absolute()
+    if path.suffix.lower() not in (".cmd", ".bat"):
+        return str(path)
+    if sys.platform != "win32" or path.name.lower() != "codex.cmd":
+        raise AgentError("native_codex_executable_required")
+    arch = {"amd64": "x64", "x86_64": "x64", "arm64": "arm64",
+            "aarch64": "arm64"}.get(platform.machine().lower())
+    if arch is None:
+        raise AgentError("native_codex_executable_required")
+    modules = path.parent / "node_modules"
+    package = modules / "@openai" / "codex"
+    triple = ("x86_64" if arch == "x64" else "aarch64") + "-pc-windows-msvc"
+    try:
+        def metadata(root, name):
+            source = root / "package.json"
+            if source.stat().st_size > 65536:
+                raise ValueError("package_metadata_limit")
+            value = json.loads(source.read_text(encoding="utf-8"))
+            if not isinstance(value, dict) or value.get("name") != name:
+                raise ValueError("package_identity")
+            return value
+        base = metadata(package, "@openai/codex")
+        roots = [package]
+        optional_name = "@openai/codex-win32-" + arch
+        for root in (package / "node_modules", modules):
+            optional = root / "@openai" / ("codex-win32-" + arch)
+            if (optional / "package.json").is_file():
+                info = metadata(optional, "@openai/codex")
+                version = str(base.get("version", "")) + "-win32-" + arch
+                dependencies = base.get("optionalDependencies", {})
+                if (not base.get("version") or info.get("version") != version
+                        or not isinstance(dependencies, dict)
+                        or dependencies.get(optional_name) != "npm:@openai/codex@" + version):
+                    raise ValueError("package_version_mismatch")
+                roots.insert(0, optional)
+        for root in roots:
+            for folder in ("bin", "codex"):
+                resolved = (root / "vendor" / triple / folder / "codex.exe").resolve()
+                if resolved.is_relative_to(root.resolve()) and resolved.is_file():
+                    return str(resolved)
+    except (OSError, ValueError, TypeError, RuntimeError):
+        pass
+    raise AgentError("native_codex_executable_required")
 
 
 def proposal_environment(profile, user_home):
@@ -146,9 +203,7 @@ class CodexAgent:
         if type(timeout) is not int or not 1 <= timeout <= 300:
             raise Invalid("invalid_agent_timeout")
         self.model, self.timeout = model, timeout
-        self.executable = shutil.which("codex")
-        if not self.executable or Path(self.executable).suffix.lower() in (".cmd", ".bat"):
-            raise AgentError("native_codex_executable_required")
+        self.executable = resolve_codex_executable()
         version = subprocess.run([self.executable, "--version"], capture_output=True,
                                  text=True, timeout=10, check=True)
         self.version = version.stdout.strip()
