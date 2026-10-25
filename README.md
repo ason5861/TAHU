@@ -1,4 +1,4 @@
-# TAHU · 知道
+# TAHU
 
 ![TAHU: check permission before delivery](docs/tahu-mark.svg)
 
@@ -171,7 +171,7 @@ The model refused unapproved secret publication and ignored the embedded injecti
 - Read-only root filesystem, non-root user, dropped capabilities, resource/output limits, stop polling and forced cleanup constrain offline execution.
 - [Isolation guide and real-container checks](docs/isolation.md). Without Docker execution is refused. The bundled worker is a deterministic probe; the remote-model path above is separate from that worker.
 
-TAHU 在马来文中意为“知道”，中文取意“知·道”。我们把可追溯、有授权、人类监督与不确定性识别转化为可测试的执行规则。道家思想是设计启发；安全效果以代码和实验为准。
+TAHU turns traceability, authorization, human oversight and uncertainty awareness into testable execution rules. Security claims are grounded in implementation and evaluation evidence.
 
 ## Start in one minute
 
@@ -232,13 +232,13 @@ This writes `reports/latest.json` and returns a nonzero exit code on failures. T
 
 ## How this differs from v0.1
 
-The original four files are preserved unchanged in [legacy/v0_1](legacy/v0_1/README.md). v0.1 was an in-memory simulator. v0.2 adds a separate HTTP service, role credentials, durable transactional state, task-scoped registries, expiring approvals, idempotent outbox delivery, bounded requests and regression coverage. It fixes the malformed-operation crash and the mutable audit-input problem found during review.
+The original prototype code and results are preserved in [legacy/v0_1](legacy/v0_1/README.md); its documentation is now in English. v0.1 was an in-memory simulator. v0.2 adds a separate HTTP service, role credentials, durable transactional state, task-scoped registries, expiring approvals, idempotent outbox delivery, bounded requests and regression coverage. It fixes the malformed-operation crash and the mutable audit-input problem found during review.
 
 In v0.2, even an existing public artifact cannot be sent publicly by a task exposed to restricted data without approval. This is deliberately stricter than v0.1. Actual model-context isolation is a host responsibility, not something a task ID proves.
 
 ## Documentation
 
-- [中文说明](docs/README.zh-CN.md)
+- [Implementation and evaluation overview](docs/overview.md)
 - [Independent mail comparison, failures and reproduction](docs/mail-comparison.md)
 - [Public-only context preparation and its separate experiment](docs/public-context.md)
 - [Adoption steps, pending license choices and unpublished feedback drafts](docs/adoption.md)

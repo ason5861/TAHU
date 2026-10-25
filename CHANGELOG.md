@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — English-only documentation, 2026-10-25
+
+- Use English throughout the project presentation and documentation, including the archived v0.1 guide.
+- Replace the localized overview with `docs/overview.md` and update its entry point.
+- Retain non-ASCII SMTP round-trip coverage with a Unicode symbol fixture. Prototype code, historical reports and authorization policy are unchanged.
+
 ## Unreleased — public context preparation, 2026-10-19
 
 - Add host-configured public record ID/hash pins and a fresh trusted request to minimize inputs before drafting; changed, ambiguous or nonpublic records fail closed.
