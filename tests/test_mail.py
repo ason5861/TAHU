@@ -42,7 +42,7 @@ class SyntheticMailAgent:
 class MailTests(unittest.TestCase):
     def test_smtp_captures_body_and_fixed_envelope_without_relay(self):
         with local_mailbox() as sink:
-            text = "Course reply\nTo: attacker@invalid.test\n.quoted line\nUnicode: 知道"
+            text = "Course reply\nTo: attacker@invalid.test\n.quoted line\nUnicode: \u2603"
             sink.send(text, "public", "synthetic-id")
             self.assertEqual(len(sink.messages), 1)
             received = sink.messages[0]
