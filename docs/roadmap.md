@@ -32,4 +32,16 @@ Gate: attempts to bypass the gateway or reach credentials fail under independent
 
 ## Broader programme
 
+## Security-validation milestones (2026-10-26)
+
+| Milestone | Current evidence | Remaining acceptance work |
+|---|---|---|
+| A: security invariants | Scoped action inventory, gateway/guarded-mail bypass tests, immutable policy and payload binding, stop serialization | Independent host/agent OS identities and egress restrictions; no arbitrary file/browser/API executor coverage |
+| B: adversarial validation | Versioned eight-case forced-request development corpus in CI; existing independent mail-arm model runs | Same-model no-enforcement and prompt-only live comparisons; independently authored held-out attacks, paraphrase grading and resource metrics |
+| C: end-to-end execution | Real-model adapter already exists; guarded local delivery, durable receiver deduplication, lost-ack and actual executor-process crash reconciliation | Rerun a live-model lifecycle on the new recovery path; full process/host isolation and production connector compensation |
+| D: adoption/readiness | Apache-2.0, public threat/security docs, Windows/Linux tests and explicit evidence levels | External security review, independently protected audit anchors, release artifacts and suitable dependency/secret scanning |
+
+These milestones are scoped work gates. Deterministic forced proposals are not
+live-model comparisons; AI-assisted review is not an independent audit.
+
 Maintain a threat register, incident response process and independent assessment. Compare with established information-flow control and systems such as CaMeL. State novelty only after that comparison. Model alignment, societal governance and international coordination are separate workstreams; this software alone cannot implement them.

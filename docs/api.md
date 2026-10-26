@@ -96,6 +96,13 @@ Responses distinguish `SUCCEEDED`, `DENIED` and `UNKNOWN`. A completed replay
 returns its recorded result without another SMTP effect. An interrupted
 `EXECUTING` record is returned as `UNKNOWN`; do not retry it automatically.
 `SUCCEEDED` means the local receiver acknowledged capture, not Internet delivery.
+The trusted host can also configure `mail_receipts=guarded.receipt` alongside a
+durable guarded receiver. Operators may then call `/v1/reconcile-mail` with the
+same `delivery_id`. This reads an immutable downstream receipt, checks the full
+payload/envelope binding, and changes UNKNOWN to SUCCEEDED only on a match.
+No new action is submitted. Missing, mismatched or unavailable receipts retain
+UNKNOWN; task tokens cannot call this endpoint. Do not convert receipt absence
+into permission to retry.
 See [execution-boundary.md](execution-boundary.md) for stop ordering, durability,
 fixture setup and the trusted-host limits. The ordinary CLI remains outbox-only.
 

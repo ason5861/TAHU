@@ -45,8 +45,11 @@ or receive the existing storage-unavailable error while the lock is held.
 An exception after DATA may mean capture occurred but the acknowledgement was
 lost. The state is UNKNOWN, never an automatic retry. A crash can leave a durable
 EXECUTING record; later calls return UNKNOWN without executing again. The local
-receiver transcript can support manual reconciliation; a production recovery
-and compensation interface is not implemented. Even an audit failure after an
+receiver now keeps durable, execution-ID-keyed receipts. The operator-only
+`/v1/reconcile-mail` endpoint can confirm an exact matching capture after a
+gateway or receiver restart; it performs no send. A missing, mismatched or
+unavailable receipt leaves UNKNOWN. A production recovery/compensation system
+for unrelated external services is not implemented. Even an audit failure after an
 effect leaves the durable start as evidence of uncertainty rather than reopening
 the delivery. A successful recorded replay does not send again.
 
@@ -94,3 +97,30 @@ manifests, lost acknowledgement, crash recovery and stop while an effect is in
 flight. This is developer-authored integration/regression evidence. Existing
 free-text utility failures and the need for independent live adversarial
 validation remain.
+
+## Versioned development corpus and durable recovery
+
+The current forced-request cases are frozen in
+[`execution_corpus_v1.json`](../examples/execution_corpus_v1.json), version
+`execution-boundary-v1`. The harness publishes the corpus SHA-256, expected
+denial reason, attack category and per-case elapsed time. CI executes this same
+probe on supported Windows/Linux Python versions. The
+[versioned probe result](../reports/execution-boundary-v1-2026-10-26.json) and
+[recovery regression report](../reports/regression-recovery-2026-10-26.json)
+describe the current recovery implementation; earlier reports retain their
+original source hashes and scope.
+
+The guarded fixture stores captures in a separate receiver database with a
+unique execution ID, an exact payload digest header and the complete MIME
+message/envelope. Identical ID/bytes acknowledge the existing capture; changed
+bytes under that ID are rejected. This idempotency applies to the receiver's
+local durable capture, not to Internet mail delivery. The receiver database and
+lookup adapter remain trusted and share the fixture's host permission domain;
+they are not an independently anchored audit service.
+
+Sixteen execution tests include a real child process exiting immediately after
+receiver capture, followed by a restarted gateway and receipt reconciliation.
+The receiver-restart case also changes its transport capability while retaining
+the durable capture. Reconciliation after stop confirms only a prior effect,
+never starts a new one. No receipt leaves the outcome unknown. Production
+retry/compensation for absent receipts remains a manual integration decision.
