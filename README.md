@@ -220,7 +220,9 @@ State is saved under `.tahu/`. `operator.json` contains a generated credential. 
 
 ## Evaluation
 
-The committed [machine-readable report](reports/latest.json) records the actual local run. The v0.3 local run passed **54 tests**, with **4 real-container tests explicitly skipped** because Docker was unavailable; the separate-process HTTP demonstration also passed. The Linux isolation CI job is the separate source of real-container evidence. Tests cover malformed requests, privilege separation, provenance omission, cross-task access, replay, approval reuse, concurrent grant consumption, expiry, restart persistence, audit mutation and transactional rollback.
+The committed [machine-readable report](reports/latest.json) records the actual local run. On 2026-10-26, **113 tests passed and 5 were skipped**: four Docker integration checks and one Windows symlink-privilege check. The separate-process HTTP demonstration also passed. The Linux isolation CI job supplies separate real-container evidence. Tests cover malformed requests, privilege separation, provenance omission, cross-task access, replay, approval reuse, concurrent grant consumption, expiry, restart persistence, audit mutation, transactional rollback and guarded local mail execution.
+
+The [local execution boundary](docs/execution-boundary.md) now rechecks authorization before SMTP delivery and denies queued work after stop. Eight forced dangerous requests produced zero guarded receiver effects, and both normal controls completed. These are developer-authored deterministic probes; no new live-model effectiveness result is claimed. The Python host and its executor capability remain trusted.
 
 ```sh
 python scripts/evaluate.py
@@ -241,9 +243,10 @@ In v0.2, even an existing public artifact cannot be sent publicly by a task expo
 - [Implementation and evaluation overview](docs/overview.md)
 - [Independent mail comparison, failures and reproduction](docs/mail-comparison.md)
 - [Public-only context preparation and its separate experiment](docs/public-context.md)
-- [Adoption steps, pending license choices and unpublished feedback drafts](docs/adoption.md)
+- [Adoption steps, license and community feedback drafts](docs/adoption.md)
 - [Live agent evaluation and measured limits](docs/live-agent-evaluation.md)
 - [Architecture and trust boundary](docs/architecture.md)
+- [Guarded local execution, stop races and recovery](docs/execution-boundary.md)
 - [API and Python integration](docs/api.md)
 - [Threat model and known limits](docs/threat-model.md)
 - [Roadmap and release gates](docs/roadmap.md)
@@ -257,4 +260,4 @@ Information-flow control, taint propagation, least privilege and external execut
 
 ## License
 
-No open-source license has been selected yet. Public repository visibility is not a license grant. A license can be added by the project owner before broader reuse is invited.
+TAHU project code and documentation are licensed under [Apache License 2.0](LICENSE). Copyright 2026 ason5861. See [NOTICE](NOTICE) for attribution and the boundary with separately licensed external materials. Commercial use is permitted under the license terms; project names and logos do not imply an endorsement.

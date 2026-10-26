@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — guarded local execution and Apache-2.0, 2026-10-26
+
+- Bind queued mail execution to the complete payload, task policy digest and enforcement version; recheck stop, expiry, labels and approval expiry immediately before the bounded local effect.
+- Add a guarded loopback receiver and an operator-only execution endpoint. TAHU mail evaluation uses this path; unguarded sinks are explicitly reserved for comparison baselines.
+- Persist execution start, serialize stop with execution, and retain UNKNOWN outcomes after interruption or lost acknowledgement without automatic retry. Existing outbox entries without execution manifests fail closed.
+- Add adversarial execution tests and a forced-request HTTP/SMTP probe. Preserve the pre-repair counterexample; distinguish these developer-authored controls from independent or live-model security evidence.
+- Apply the owner's Apache-2.0 choice with the official full license text, attribution notice, package metadata and updated adoption/contribution instructions.
+
 ## Unreleased — English-only documentation, 2026-10-25
 
 - Use English throughout the project presentation and documentation, including the archived v0.1 guide.
