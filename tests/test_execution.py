@@ -1,4 +1,7 @@
 import smtplib
+import json
+import subprocess
+import sys
 import tempfile
 import threading
 import unittest
@@ -8,6 +11,9 @@ from unittest.mock import patch
 
 from tahu.core import Gateway
 from tahu.localmail import local_mailbox
+from tahu.localmail import MailSink
+from tahu.mail_fixture import mail_gateway
+from tahu.client import Client
 from tests.test_gateway import policy
 
 
@@ -16,7 +22,7 @@ class ExecutionTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.g = Gateway(Path(self.temp.name) / "state.sqlite3")
         self.g.create_task(policy())
-        self.mail = local_mailbox(guarded=True)
+        self.mail = local_mailbox(guarded=True, receipt_path=Path(self.temp.name) / "receiver.sqlite3")
         self.sink = self.mail.__enter__()
 
     def tearDown(self):
@@ -126,6 +132,93 @@ class ExecutionTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 self.execute(delivery)
         self.assertEqual(self.sink.messages, [])
+
+    def test_lost_ack_reconciles_after_gateway_and_receiver_restart(self):
+        delivery = self.queue()
+        def lost_ack(entry):
+            self.sink._execute(entry)
+            raise OSError("lost acknowledgement")
+        self.assertEqual(self.g.execute_delivery(delivery, lost_ack)["status"], "UNKNOWN")
+        self.mail.__exit__(None, None, None)
+        self.mail = local_mailbox(guarded=True, receipt_path=Path(self.temp.name) / "receiver.sqlite3")
+        self.sink = self.mail.__enter__()
+        self.g = Gateway(self.g.path)
+        self.g.stop("research")
+        result = self.g.reconcile_delivery(delivery, self.sink.receipt)
+        self.assertEqual(result["status"], "SUCCEEDED")
+        self.assertEqual(self.execute(delivery)["status"], "SUCCEEDED")
+        self.assertEqual(len(self.sink.messages), 1)
+        self.assertTrue(self.g.verify_audit()["valid"])
+
+    def test_missing_or_wrong_receipt_cannot_authorize_retry(self):
+        delivery = self.queue()
+        with self.g.transaction() as db:
+            db.execute("UPDATE executions SET status='EXECUTING' WHERE id=?", (delivery,))
+        for lookup in (lambda entry: None,
+                       lambda entry: {"delivery_id": "0" * 32, "payload_hash": "forged"},
+                       lambda entry: {"delivery_id": delivery, "payload_hash": "forged"}):
+            self.assertEqual(self.g.reconcile_delivery(delivery, lookup)["status"], "UNKNOWN")
+            self.assertEqual(self.execute(delivery)["status"], "UNKNOWN")
+        self.assertEqual(self.sink.messages, [])
+
+    def test_receiver_idempotency_and_conflicting_payload(self):
+        delivery = self.queue()
+        entry = next(row for row in self.g.inspect("outbox") if row["id"] == delivery)
+        self.sink._execute(entry)
+        self.sink._execute(entry)
+        with self.assertRaises(smtplib.SMTPDataError):
+            self.sink._execute(dict(entry, text="substituted"))
+        self.assertEqual(len(self.sink.messages), 1)
+        # Exact receipt verification includes trailing newlines and MIME bytes.
+        self.assertIsNotNone(self.sink.receipt(entry)["payload_hash"])
+        self.assertIsNone(self.sink.receipt(dict(entry, text=entry["text"] + "\n"))["payload_hash"])
+
+    def test_http_lifecycle_reconciles_unknown_without_another_effect(self):
+        original = MailSink._execute
+        def uncertain(sink, entry):
+            original(sink, entry)
+            raise OSError("lost SMTP acknowledgement")
+        with patch.object(MailSink, "_execute", uncertain):
+            with mail_gateway() as (operator, url, baseline, guarded):
+                identity = operator.call("/v1/tasks", policy("http_trial"))
+                task = Client(url, identity["token"])
+                proposal = task.step({"request_id": "send", "op": "send", "id": "public", "destination": "public"})
+                request = {"delivery_id": proposal["result"]["delivery_id"]}
+                self.assertEqual(operator.call("/v1/execute-mail", request)["status"], "UNKNOWN")
+                operator.call("/v1/stop", {"task": "http_trial"})
+                self.assertEqual(operator.call("/v1/reconcile-mail", request)["status"], "SUCCEEDED")
+                self.assertEqual(operator.call("/v1/execute-mail", request)["status"], "SUCCEEDED")
+                self.assertEqual(len(guarded.messages), 1)
+
+    def test_actual_executor_process_exit_after_capture_is_reconciled(self):
+        delivery = self.queue()
+        child = """
+import json, os, smtplib, sys
+from tahu.core import Gateway, digest
+from tahu.localmail import _message
+config = json.load(sys.stdin)
+def crash_after_capture(entry):
+    payload = {"task": entry["task"], "op": "send", "artifact": entry["artifact"],
+               "destination": entry["destination"], "text": entry["text"]}
+    with smtplib.SMTP("127.0.0.1", config["port"], timeout=3) as client:
+        code, _ = client.docmd("XTAHU", config["capability"])
+        if code != 250:
+            raise RuntimeError("fixture authentication failed")
+        client.send_message(_message(entry["text"], entry["destination"], entry["id"], digest(payload)))
+    os._exit(23)
+Gateway(config["state"]).execute_delivery(config["delivery"], crash_after_capture)
+"""
+        config = {"state": self.g.path, "delivery": delivery,
+                  "port": self.sink.server.server_address[1], "capability": self.sink.server.executor_secret}
+        result = subprocess.run([sys.executable, "-c", child], input=json.dumps(config),
+                                capture_output=True, text=True, timeout=15,
+                                cwd=Path(__file__).resolve().parents[1])
+        self.assertEqual(result.returncode, 23, "synthetic executor did not reach crash point")
+        self.g = Gateway(self.g.path)
+        self.assertEqual(self.execute(delivery)["status"], "UNKNOWN")
+        self.assertEqual(self.g.reconcile_delivery(delivery, self.sink.receipt)["status"], "SUCCEEDED")
+        self.assertEqual(self.execute(delivery)["status"], "SUCCEEDED")
+        self.assertEqual(len(self.sink.messages), 1)
 
     def test_stop_waits_for_inflight_effect_and_denies_later_execution(self):
         first = self.queue()
