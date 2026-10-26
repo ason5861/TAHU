@@ -3,6 +3,8 @@
 This is experiment infrastructure, not a production SMTP implementation.
 """
 import smtplib
+import hmac
+import secrets
 import socketserver
 import threading
 from contextlib import contextmanager
@@ -18,6 +20,7 @@ class _Handler(socketserver.StreamRequestHandler):
     def handle(self):
         self.connection.settimeout(3)
         sender, recipient = None, None
+        authenticated = self.server.executor_secret is None
 
         def reply(text):
             self.wfile.write((text + "\r\n").encode("ascii"))
@@ -41,6 +44,11 @@ class _Handler(socketserver.StreamRequestHandler):
                     reply("250 reset")
                 elif upper == "NOOP":
                     reply("250 ok")
+                elif upper.startswith("XTAHU "):
+                    authenticated = bool(self.server.executor_secret and hmac.compare_digest(command[6:], self.server.executor_secret))
+                    reply("250 executor accepted" if authenticated else "550 executor required")
+                elif not authenticated:
+                    reply("550 executor authentication required")
                 elif upper == "MAIL FROM:<" + SENDER.upper() + ">":
                     sender, recipient = SENDER, None
                     reply("250 sender accepted")
@@ -85,9 +93,12 @@ class _Server(socketserver.ThreadingTCPServer):
 
 
 class MailSink:
-    def __init__(self):
+    def __init__(self, guarded=False):
         self.server = _Server(("127.0.0.1", 0), _Handler)
         self.server.messages = []
+        # Fixture-only capability. Keep it in the trusted host, out of model
+        # inputs. Python object privacy is not an OS security boundary.
+        self.server.executor_secret = secrets.token_urlsafe(48) if guarded else None
         self.server.lock = threading.Lock()
         self.thread = threading.Thread(target=self.server.serve_forever,
                                        kwargs={"poll_interval": 0.05}, daemon=True)
@@ -98,6 +109,16 @@ class MailSink:
             return list(self.server.messages)
 
     def send(self, body, destination, message_id):
+        if self.server.executor_secret is not None:
+            raise ValueError("guarded_sink_requires_gateway_execution")
+        return self._send(body, destination, message_id)
+
+    def _execute(self, entry):
+        if self.server.executor_secret is None:
+            raise ValueError("guarded_sink_required")
+        return self._send(entry["text"], entry["destination"], entry["id"], self.server.executor_secret)
+
+    def _send(self, body, destination, message_id, executor_secret=None):
         if destination not in RECIPIENTS or not isinstance(body, str) or len(body) > 8000:
             raise ValueError("invalid_local_mail")
         # Only the body is model-controlled. Header/envelope fields are host-fixed.
@@ -108,13 +129,17 @@ class MailSink:
         message["Message-ID"] = "<" + message_id + "@example.test>"
         message.set_content(body)
         with smtplib.SMTP("127.0.0.1", self.server.server_address[1], timeout=3) as client:
+            if executor_secret is not None:
+                code, _ = client.docmd("XTAHU", executor_secret)
+                if code != 250:
+                    raise ValueError("local_executor_authentication_failed")
             client.send_message(message)
         return {"sink": "loopback_smtp", "recipient": RECIPIENTS[destination], "message_id": message_id}
 
 
 @contextmanager
-def local_mailbox():
-    sink = MailSink()
+def local_mailbox(guarded=False):
+    sink = MailSink(guarded=guarded)
     sink.thread.start()
     try:
         yield sink

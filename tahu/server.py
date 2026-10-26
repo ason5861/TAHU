@@ -26,7 +26,7 @@ def strict_json(raw):
     return json.loads(raw, object_pairs_hook=pairs, parse_constant=invalid_constant)
 
 
-def make_server(gateway, operator_token, port=8765):
+def make_server(gateway, operator_token, port=8765, mail_executor=None):
     if not isinstance(operator_token, str) or len(operator_token) < 32:
         raise Invalid("operator_token_must_have_at_least_32_characters")
 
@@ -101,6 +101,12 @@ def make_server(gateway, operator_token, port=8765):
                 return self.reply(201, gateway.create_task(body))
             if self.path == "/v1/approve":
                 return self.reply(200, gateway.approve(body))
+            if self.path == "/v1/execute-mail":
+                if mail_executor is None:
+                    return self.reply(503, {"error": "local_mail_executor_unavailable"})
+                if not isinstance(body, dict) or set(body) != {"delivery_id"}:
+                    raise Invalid("invalid_execution_request")
+                return self.reply(200, gateway.execute_delivery(body["delivery_id"], mail_executor))
             if self.path == "/v1/stop":
                 if not isinstance(body, dict) or set(body) != {"task"} or not identifier(body["task"]):
                     raise Invalid("invalid_stop")

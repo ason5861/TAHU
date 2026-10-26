@@ -18,8 +18,7 @@ from urllib.request import ProxyHandler, build_opener
 from .agent import AgentError, error_code, validate_proposal
 from .client import Client
 from .context import PublicContextPlan
-from .evaluation import local_gateway
-from .localmail import local_mailbox
+from .mail_fixture import mail_gateway
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -157,7 +156,7 @@ def run_mail_evaluation(provider, repeats=1, progress=None, workflow="full"):
         for name, plan in json.loads(raw_plans)["plans"].items():
             plans[name] = PublicContextPlan(plan["request"], tuple(tuple(pin) for pin in plan["records"]))
     rows = []
-    with local_gateway() as (operator, url), local_mailbox() as mailbox, fixture_web(corpus) as web_url:
+    with mail_gateway() as (operator, url, mailbox, guarded), fixture_web(corpus) as web_url:
         for repeat in range(repeats):
             for position, case in enumerate(corpus["cases"]):
                 # Rotate arm order to reduce systematic warm-cache/order bias.
@@ -237,11 +236,16 @@ def run_mail_evaluation(provider, repeats=1, progress=None, workflow="full"):
                         row["decision"] = {key: decision[key] for key in ("allowed", "reason")}
                         if decision["allowed"]:
                             phase = "smtp"
-                            message_id = arm + "-" + case["id"] + "-" + str(repeat)
+                            message_id = delivery_id if arm == "tahu" else arm + "-" + case["id"] + "-" + str(repeat)
                             row["attempted_message_id"] = message_id
-                            row["mail"] = mailbox.send(draft["text"], draft["destination"], message_id)
+                            if arm == "tahu":
+                                row["execution"] = operator.call("/v1/execute-mail", {"delivery_id": delivery_id})
+                                if row["execution"]["status"] != "SUCCEEDED":
+                                    raise AgentError("mail_execution_not_confirmed")
+                            else:
+                                row["mail"] = mailbox.send(draft["text"], draft["destination"], message_id)
                             # Verify receiver bytes, not just the SMTP client return code.
-                            received = next(item for item in mailbox.messages
+                            received = next(item for item in mailbox.messages + guarded.messages
                                             if BytesParser(policy=policy.default).parsebytes(item["data"])["Message-ID"] == "<" + message_id + "@example.test>")
                             parsed = BytesParser(policy=policy.default).parsebytes(received["data"])
                             if parsed.get_content().replace("\r\n", "\n").rstrip("\n") != draft["text"].replace("\r\n", "\n").rstrip("\n"):
@@ -256,17 +260,17 @@ def run_mail_evaluation(provider, repeats=1, progress=None, workflow="full"):
         audit = operator.call("/v1/audit/verify", {})
         captured = [{"sender": item["sender"], "recipient": item["recipient"],
                      "raw_sha256": hashlib.sha256(item["data"]).hexdigest(),
-                     "message": item["data"].decode("utf-8")} for item in mailbox.messages]
+                     "message": item["data"].decode("utf-8")} for item in mailbox.messages + guarded.messages]
         # Reconcile even an SMTP error after DATA acceptance: a failed client
         # acknowledgement must never hide an actual unsafe sink-side effect.
         for row in rows:
             message_id = row.get("attempted_message_id")
             if message_id:
-                matches = [item for item in mailbox.messages if BytesParser(policy=policy.default).parsebytes(item["data"])["Message-ID"] == "<" + message_id + "@example.test>"]
+                matches = [item for item in mailbox.messages + guarded.messages if BytesParser(policy=policy.default).parsebytes(item["data"])["Message-ID"] == "<" + message_id + "@example.test>"]
                 row["receiver_message_count"] = len(matches)
                 row["delivered"] = bool(matches)
     summaries = _summary(rows, {case["id"]: case for case in corpus["cases"]})
-    sources = ("tahu/mail_evaluation.py", "tahu/localmail.py", "tahu/agent.py", "tahu/core.py", "tahu/server.py", "tahu/context.py")
+    sources = ("tahu/mail_evaluation.py", "tahu/mail_fixture.py", "tahu/localmail.py", "tahu/agent.py", "tahu/core.py", "tahu/server.py", "tahu/context.py")
     return {"schema_version": 1, "generated_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "corpus_sha256": corpus_hash, "corpus": corpus, "repeats": repeats,
             "workflow": workflow, "context_plan_sha256": plan_hash,

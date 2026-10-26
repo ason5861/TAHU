@@ -11,6 +11,9 @@ from contextlib import contextmanager
 from pathlib import Path
 
 
+POLICY_VERSION = "tahu-policy-v1"
+
+
 def canonical(value):
     return json.dumps(value, ensure_ascii=True, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
@@ -55,6 +58,10 @@ class Gateway:
                 CREATE TABLE IF NOT EXISTS outbox (
                     id TEXT PRIMARY KEY, task TEXT NOT NULL, artifact TEXT NOT NULL,
                     destination TEXT NOT NULL, text TEXT NOT NULL, created REAL NOT NULL);
+                CREATE TABLE IF NOT EXISTS executions (
+                    id TEXT PRIMARY KEY, payload_hash TEXT NOT NULL, policy_hash TEXT NOT NULL,
+                    policy_version TEXT NOT NULL, approved_until REAL,
+                    status TEXT NOT NULL, reason TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS audit (
                     sequence INTEGER PRIMARY KEY AUTOINCREMENT, event TEXT NOT NULL,
                     previous_hash TEXT NOT NULL, hash TEXT NOT NULL);
@@ -253,11 +260,82 @@ class Gateway:
                     return finish(False, "information_flow_denied")
                 delivery = secrets.token_hex(16)
                 db.execute("INSERT INTO outbox VALUES(?,?,?,?,?,?)", (delivery, task_id, request["id"], destination, artifact["text"], time.time()))
+                payload = {"task": task_id, "op": "send", "artifact": request["id"],
+                           "destination": destination, "text": artifact["text"]}
+                db.execute("INSERT INTO executions VALUES(?,?,?,?,?,?,?)",
+                           (delivery, digest(payload), digest(policy), POLICY_VERSION,
+                            grant["expires"] if approved else None, "AUTHORIZED", "queued"))
                 if grant:
                     db.execute("UPDATE grants SET used=1 WHERE task=? AND artifact=? AND destination=?", (task_id, request["id"], destination))
                 result = {"delivery_id": delivery, "sink": "local_sqlite_outbox"}
             db.execute("UPDATE tasks SET used=used+1, exposure=? WHERE id=?", (canonical(sorted(exposure)), task_id))
             return finish(True, "allowed", result)
+
+    def execute_delivery(self, delivery_id, executor):
+        """Trusted executor only. Serialize stop with bounded local SMTP execution.
+
+        EXECUTING is durable before entering the effect transaction. A crash or
+        lost acknowledgement is UNKNOWN and must never cause an automatic retry.
+        Holding the SQLite write lock across the bounded callback is intentional:
+        stop either commits first (no effect), or waits until this effect finishes.
+        This is suitable for the local fixture, not a general network transaction.
+        """
+        if not isinstance(delivery_id, str) or len(delivery_id) != 32 or any(c not in "0123456789abcdef" for c in delivery_id):
+            raise Invalid("invalid_delivery_id")
+
+        def finish(db, status, reason):
+            db.execute("UPDATE executions SET status=?,reason=? WHERE id=?", (status, reason, delivery_id))
+            self.audit(db, {"event": "execution", "delivery": delivery_id, "status": status, "reason": reason})
+            return {"status": status, "reason": reason, "delivery_id": delivery_id}
+
+        with self.transaction() as db:
+            execution = db.execute("SELECT * FROM executions WHERE id=?", (delivery_id,)).fetchone()
+            if not execution:
+                return {"status": "DENIED", "reason": "missing_execution_authorization", "delivery_id": delivery_id}
+            if execution["status"] == "EXECUTING":
+                return {"status": "UNKNOWN", "reason": "interrupted_or_concurrent_execution", "delivery_id": delivery_id}
+            if execution["status"] != "AUTHORIZED":
+                return {"status": execution["status"], "reason": execution["reason"], "delivery_id": delivery_id}
+            finish(db, "EXECUTING", "execution_started")
+
+        with self.transaction() as db:
+            execution = db.execute("SELECT * FROM executions WHERE id=?", (delivery_id,)).fetchone()
+            if execution["status"] != "EXECUTING":
+                return {"status": execution["status"], "reason": execution["reason"], "delivery_id": delivery_id}
+            entry = db.execute("SELECT * FROM outbox WHERE id=?", (delivery_id,)).fetchone()
+            if not entry:
+                return finish(db, "DENIED", "missing_outbox_entry")
+            task = db.execute("SELECT * FROM tasks WHERE id=?", (entry["task"],)).fetchone()
+            if not task or task["stopped"]:
+                return finish(db, "DENIED", "task_stopped_or_missing")
+            if task["expires"] <= time.time():
+                return finish(db, "DENIED", "task_expired")
+            try:
+                policy = json.loads(task["policy"])
+                payload = {"task": entry["task"], "op": "send", "artifact": entry["artifact"],
+                           "destination": entry["destination"], "text": entry["text"]}
+                if (execution["policy_version"] != POLICY_VERSION or execution["policy_hash"] != digest(policy)
+                        or execution["payload_hash"] != digest(payload)):
+                    return finish(db, "DENIED", "authorization_binding_changed")
+                artifact = db.execute("SELECT * FROM artifacts WHERE task=? AND id=?", (entry["task"], entry["artifact"])).fetchone()
+                if not artifact or artifact["text"] != entry["text"] or entry["destination"] not in policy["destinations"]:
+                    return finish(db, "DENIED", "artifact_or_destination_changed")
+                labels = set(json.loads(artifact["labels"])) | set(json.loads(task["exposure"]))
+                if "unknown" in labels:
+                    return finish(db, "DENIED", "classification_required")
+                approved = execution["approved_until"] is not None and execution["approved_until"] > time.time()
+                if execution["approved_until"] is not None and not approved:
+                    return finish(db, "DENIED", "approval_expired")
+                if ("untrusted" in labels or not labels <= set(policy["destinations"][entry["destination"]])) and not approved:
+                    return finish(db, "DENIED", "execution_review_required")
+            except (ValueError, TypeError, KeyError):
+                return finish(db, "DENIED", "invalid_execution_state")
+            # Do not return raw exception text, which can contain sensitive data.
+            try:
+                executor(dict(entry))
+            except Exception:
+                return finish(db, "UNKNOWN", "executor_outcome_unknown")
+            return finish(db, "SUCCEEDED", "receiver_acknowledged")
 
     def inspect(self, table):
         if table not in ("audit", "outbox"):
