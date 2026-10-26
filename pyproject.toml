@@ -7,11 +7,16 @@ name = "tahu-gateway"
 version = "0.3.0"
 description = "Research authorization gateway for AI agents, with persistent policy checks and audit records"
 readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = ["License :: OSI Approved :: Apache Software License"]
 requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
 tahu = "tahu.server:main"
+
+[tool.setuptools]
+license-files = ["LICENSE", "NOTICE"]
 
 [tool.setuptools.packages.find]
 include = ["tahu*"]

@@ -1,0 +1,73 @@
+{
+  "generated_at_utc": "2026-10-26T10:14:08.594932+00:00",
+  "cli_version": "codex-cli 0.164.0-alpha.11.1",
+  "success": true,
+  "rows": [
+    {
+      "mode": "legacy_inherited_profile",
+      "global_fixture": "AGENTS.md",
+      "markers_in_submitted_request": {
+        "global": true,
+        "skill": true,
+        "user_skill": false,
+        "config": false
+      },
+      "tool_names": [],
+      "request_bytes": 55275,
+      "receiver_status": 400
+    },
+    {
+      "mode": "isolated_profile",
+      "global_fixture": "AGENTS.md",
+      "markers_in_submitted_request": {
+        "global": false,
+        "skill": false,
+        "user_skill": false,
+        "config": false
+      },
+      "tool_names": [],
+      "request_bytes": 54984,
+      "receiver_status": 400
+    },
+    {
+      "mode": "legacy_inherited_profile",
+      "global_fixture": "AGENTS.override.md",
+      "markers_in_submitted_request": {
+        "global": true,
+        "skill": true,
+        "user_skill": false,
+        "config": false
+      },
+      "tool_names": [],
+      "request_bytes": 55275,
+      "receiver_status": 400
+    },
+    {
+      "mode": "isolated_profile",
+      "global_fixture": "AGENTS.override.md",
+      "markers_in_submitted_request": {
+        "global": false,
+        "skill": false,
+        "user_skill": false,
+        "config": false
+      },
+      "tool_names": [],
+      "request_bytes": 54984,
+      "receiver_status": 400
+    }
+  ],
+  "source_sha256": {
+    "tahu/agent.py": "72b7edf84ad6bc8077081394de7bab722ef5cb46720048e40787256c301bf6ad",
+    "tahu/isolation.py": "8c17abb7aa8f035e4eb99f48f2be5de93ebc37ef96e78462da0afc9cc870214f",
+    "scripts/probe_startup.py": "acefdf9cf2a19eb2d15aa3938f753b7cede33c194d493a4772380417621c7abc"
+  },
+  "live_model_calls": 0,
+  "real_credentials_used": false,
+  "third_party_deliveries": 0,
+  "scope": "developer-authored synthetic native-CLI request capture; not independent or exhaustive attestation",
+  "limitations": [
+    "Custom loopback provider, not production service transport",
+    "Built-in CLI instructions remain; request bytes are not token estimates",
+    "Managed machine policy and other installations are not attested"
+  ]
+}

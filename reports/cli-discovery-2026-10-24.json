@@ -1,0 +1,77 @@
+{
+  "generated_at_utc": "2026-10-24T05:44:17.819055+00:00",
+  "success": true,
+  "cli_version": "codex-cli 0.163.0-alpha.11.2",
+  "fixture": "synthetic legacy npm layout with copied installed native binary; not an npm installation",
+  "old_initializer_rejects": true,
+  "native_binary_selected": true,
+  "shim_executed": false,
+  "rows": [
+    {
+      "mode": "legacy_inherited_profile",
+      "global_fixture": "AGENTS.md",
+      "markers_in_submitted_request": {
+        "global": true,
+        "skill": true,
+        "user_skill": false,
+        "config": false
+      },
+      "tool_names": [],
+      "request_bytes": 55275,
+      "receiver_status": 400
+    },
+    {
+      "mode": "isolated_profile",
+      "global_fixture": "AGENTS.md",
+      "markers_in_submitted_request": {
+        "global": false,
+        "skill": false,
+        "user_skill": false,
+        "config": false
+      },
+      "tool_names": [],
+      "request_bytes": 54984,
+      "receiver_status": 400
+    },
+    {
+      "mode": "legacy_inherited_profile",
+      "global_fixture": "AGENTS.override.md",
+      "markers_in_submitted_request": {
+        "global": true,
+        "skill": true,
+        "user_skill": false,
+        "config": false
+      },
+      "tool_names": [],
+      "request_bytes": 55275,
+      "receiver_status": 400
+    },
+    {
+      "mode": "isolated_profile",
+      "global_fixture": "AGENTS.override.md",
+      "markers_in_submitted_request": {
+        "global": false,
+        "skill": false,
+        "user_skill": false,
+        "config": false
+      },
+      "tool_names": [],
+      "request_bytes": 54984,
+      "receiver_status": 400
+    }
+  ],
+  "live_model_calls": 0,
+  "real_credentials_used": false,
+  "third_party_deliveries": 0,
+  "source_sha256": {
+    "tahu/agent.py": "8b58872c3b929ee2c1834c1c2f75e83af80c266fafe4560038d09af2de263a21",
+    "tests/test_cli_discovery.py": "02788a7f18da4b410dfbfea8ea6cd7f931358b29a7a53cae964577f92ee7528d",
+    "scripts/probe_cli_discovery.py": "808cab17e5328741492f96c40598a944fcfd4beedd8f0410e90446ddc54651ae",
+    "scripts/probe_startup.py": "acefdf9cf2a19eb2d15aa3938f753b7cede33c194d493a4772380417621c7abc"
+  },
+  "limitations": [
+    "Developer-authored smoke, not independent validation",
+    "Optional npm-package layouts and ARM64 covered by synthetic unit tests only",
+    "No production provider or fresh npm install tested; built-in context remains"
+  ]
+}

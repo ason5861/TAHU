@@ -1,94 +1,96 @@
-# TAHU · 知道 — v0.1 研究原型
+# TAHU — v0.1 research prototype
 
-日期：2026-09-24。状态：开发用演示，未接入真实 AI，未经独立验证，不适合直接作为生产安全边界。
+Original experiment date: 2026-09-24. Status: a development demonstration, without real AI integration or independent validation. It is not suitable as a production security boundary. This archived guide was translated into English on 2026-10-25; the original prototype code and results remain unchanged.
 
-## 名称与定位
+## Principles and scope
 
-TAHU 在马来文中意为“知道”；中文取意“知·道”。本项目受道家思想启发，尝试把克制、知止与可纠正性转成可检查的工程约束。这是现代工程诠释，不是老子原文，也不主张哲学寓意已经证明系统安全。
+TAHU explores restraint, stopping and corrigibility as inspectable engineering constraints. Its philosophical inspiration is a modern interpretation, not a quotation or evidence of security effectiveness.
 
-| 字母 | 原则 | 本版实现 |
+| Letter | Principle | Implementation in this version |
 |---|---|---|
-| T | Traceability / 可追溯 | 每次尝试的允许或拒绝原因、操作计数、来源暴露标签 |
-| A | Authorization / 有授权 | 工具白名单、固定目标、资料流向限制、行动预算 |
-| H | Human Oversight / 人类监督 | 可信操作者停止接口；绑定资料与目标的一次性授权 |
-| U | Uncertainty Awareness / 不确定性识别 | 来源标签未知时阻止发送，要求先分类 |
+| T | Traceability | Allow/deny reasons, operation counts and source-exposure labels for each attempt |
+| A | Authorization | Tool allowlists, fixed destinations, information-flow restrictions and action budgets |
+| H | Human Oversight | Trusted-operator stop interface and one-use approval bound to an artifact and destination |
+| U | Uncertainty Awareness | Block sending records with unknown classification until classified |
 
-U 在本版只是“资料分类未知”的规则，尚未测量模型信心或识别所有未知风险。H 是代码接口，并不是已完成的身份验证或审核产品。
+Here, uncertainty awareness is a rule about unknown record classifications, not a measurement of model confidence or detection of all unknown risks. Human oversight is a code interface, not a finished authentication or review product.
 
-## 研究问题
+## Research question
 
-一个 Agent 能读取资料、生成文稿和发送消息，不代表它获准将受限资料传到公共目标。TAHU v0.1 检查连续操作的资料来源，尝试阻止“改写以后丢失限制”的情况。
+An agent's ability to read records, derive drafts and send messages does not authorize it to transfer restricted information to a public destination. TAHU v0.1 tracks sources across successive operations to investigate whether restrictions can survive rewriting and omitted provenance.
 
-本版只演示信息流约束，不涵盖全球 AI 治理、军事风险、操纵、就业、模型欺骗或自我复制。目的约束、语义上的累积伤害和完整风险预算尚未实现。
+This version demonstrates information-flow constraints only. It does not address global AI governance, military risks, manipulation, employment effects, model deception or self-replication. Purpose constraints, semantic cumulative harm and comprehensive risk budgets are not implemented.
 
-## 实现与可信边界
+## Implementation and trust boundary
 
-模型/调用者只提交 read、derive、send 三类结构化请求。Monitor 先检查，再在内存中执行模拟操作；没有真正发送消息、访问网络或读写用户业务资料。
+The caller submits structured `read`, `derive` and `send` requests. The monitor checks them before simulating operations in memory. It sends no actual messages, accesses no network and reads or writes no user business records.
 
-资料注册表由可信宿主建立，初始标签不是 Agent 自报。派生资料继承来源标签；TAHU 模式还保留会话接触过的受限标签，防止 Agent 读取敏感内容后省略来源，假装生成的是新内容。资料 ID 不可覆盖。公共目标只接收公开资料，内部目标可接收 restricted 资料，unknown 资料不能发送。
+A trusted host initializes the artifact registry and labels; agents do not self-report initial classifications. Derived artifacts inherit source labels. TAHU mode also retains restricted session-exposure labels so that an agent cannot read sensitive information and clear its restrictions by omitting sources. Artifact IDs cannot be overwritten. Public destinations accept public artifacts only; internal destinations can accept `restricted` artifacts, and `unknown` artifacts cannot be sent.
 
-在演示接口中，Agent 请求不能修改标签、策略、预算或授予自身权限；可信操作者可以发出绑定资料 ID 与目标的一次性授权。授权不能覆盖停止命令、预算限制或未知分类。
+Agent requests cannot change labels, policy or budgets, or grant permission. The trusted operator can issue one-use approval bound to an artifact ID and destination. Approval cannot override stop state, budget limits or unknown classifications.
 
-**这不是进程隔离。** Python 对象的字段并非防篡改存储。如果不可信代码与 Monitor 同进程运行并取得对象引用，就可能直接修改字段或调用可信接口。实际部署必须由独立服务保存策略、凭证及状态，并以身份认证区分 Agent 与操作者。所有外部执行路径必须经过该服务。
+**This is not process isolation.** Python object fields are not tamper-resistant storage. Untrusted code in the same process with object references may modify fields or call trusted interfaces directly. Deployment requires a separate service protecting policy, credentials and state, authenticated separation of agents from operators, and mediation of every external execution path.
 
-其他前提与缺口：
+Other assumptions and gaps:
 
-- 不包含模型预训练知识、既有上下文或其他通道内的秘密；初始环境必须另行约束。
-- 单进程顺序执行，无并发安全、事务持久化、崩溃恢复或重启后的状态保存。
-- 日志仅在内存，非防篡改日志，并可能含敏感请求正文；真实部署应最小化记录并控制访问。
-- 会话暴露标签只能增加，可能误拦无关内容；不允许 Agent 自行清空历史。
-- 固定目标为演示用符号，无真实 URL、地址规范化或目标身份认证。
-- unknown 检查依赖正确标签，不等于自动发现所有未知来源。
-- 行动预算只计获准操作，不是完整的计算、网络或拒绝请求速率限制。
-- 不检测语义操纵、隐蔽通道或通过一系列公开选择编码秘密等行为。
+- Secrets in pretrained knowledge, existing context or other channels are outside this simulator; the initial environment needs separate constraints.
+- Execution is sequential in one process, without concurrency safety, transactional persistence, crash recovery or state across restarts.
+- Logs exist only in memory, are not tamper-resistant, and may contain sensitive request bodies. Deployment needs data minimization and access control.
+- Session exposure only increases, which can block unrelated content. Agents cannot clear their own history.
+- Fixed destinations are symbolic fixtures, without real URL/address normalization or destination authentication.
+- Unknown-source handling depends on correct labels, not automatic discovery of all unknown sources.
+- Action budgets count accepted operations, not total computation, network activity or rejected-request rates.
+- Semantic manipulation, covert channels and encoding secrets through sequences of public choices are not detected.
 
-## 如何复现
+## Reproduce
 
-需要 Python 3.10 或更高版本，无第三方依赖。在解压后的目录运行：
+Python 3.10+ is required, with no third-party dependencies. From this archived directory:
 
-```bash
-python3 evaluate.py
+```sh
+python evaluate.py
 ```
 
-程序输出汇总并重新生成 results.json。全部资料都是合成示例，无真实个人资料。测试不是独立安全基准，场景与实现由同一开发过程编写，不能据此推断真实世界成功率。
+The program prints a summary and regenerates `results.json`. All records are synthetic and contain no real personal information. Scenarios and implementation were developed together; this is not an independent security benchmark or a real-world success rate.
 
-## 实际结果
+## Recorded results
 
-三个模式使用相同的 17 个开发场景：11 个违规、5 个正常、1 个来源不确定。三组共享请求格式检查、预算与停止机制；差别在资料流检查。
+Three modes use the same 17 development scenarios: 11 prohibited, five legitimate and one uncertain-source case. All modes share request validation, budgets and stop controls; information-flow checks differ.
 
-| 模式 | 违规场景拦截 | 正常场景完成 | 不确定来源阻止发送 | 总体符合场景预期 |
+| Mode | Prohibited scenarios blocked | Legitimate scenarios completed | Uncertain-source sending blocked | Expected outcomes overall |
 |---|---:|---:|---:|---:|
-| tools：仅工具与结构权限 | 5/11 | 5/5 | 0/1 | 10/17 |
-| lineage：增加显式来源标签继承 | 9/11 | 5/5 | 1/1 | 15/17 |
-| tahu：再增加会话暴露标签 | 11/11 | 4/5 | 1/1 | 16/17 |
+| `tools`: tool and structural permissions | 5/11 | 5/5 | 0/1 | 10/17 |
+| `lineage`: add explicit source-label inheritance | 9/11 | 5/5 | 1/1 | 15/17 |
+| `tahu`: also retain session exposure | 11/11 | 4/5 | 1/1 | 16/17 |
 
-另外 6 组控制属性检查通过：授权一次性、授权目标绑定、授权资料绑定、预算停止、操作者停止、拒绝时不产生发送副作用并记录原因。
+Six additional control-property groups passed: one-use approval, destination binding, artifact binding, budget stop, operator stop, and denial without a send effect while retaining a reason.
 
-**已知反例必须保留：** 读取受限资料后，生成不相关的“2 + 2 = 4”，TAHU 仍会阻止公开发送。会话暴露规则能够弥补省略来源的问题，却牺牲可用性。已存在且未被改写的公开资料仍可发送。
+**Retained counterexample:** after reading restricted information, a task that derives the unrelated text `2 + 2 = 4` is still denied public delivery. Session exposure closes the provenance-omission gap at a usability cost. Existing public artifacts that have not been rewritten can still be sent in this version.
 
-结论仅限于：在这些人工设定的开发场景中，代码按所述规则阻止了违规操作，并出现一个已知误拦。没有调用真实 AI，没有开展独立攻击测试，没有证明优于成熟的信息流控制产品，也没有证明道家思想本身带来了安全收益。
+The result establishes only that specified rules blocked prohibited actions in these authored scenarios, with one known false block. No real AI was called, no independent adversarial assessment was performed, and no superiority over mature information-flow systems or security benefit from philosophy itself was demonstrated.
 
-## 原创性与相关工作
+## Originality and related work
 
-名称、思想和机制的原创性应分别评估。来源标签继承、信息流控制、最小权限和外部监督都有既有研究；本版不声称发明了这些技术，也不声称全球首创。TAHU 名称的商标或同名项目状态未核实。
+Naming, inspiration and mechanisms require separate originality assessments. Source-label inheritance, information-flow control, least privilege and external oversight have substantial prior work. This version claims neither invention of these mechanisms nor global priority. Trademark and same-name project status have not been verified.
 
-前期检索已识别的相关资料，供后续完整阅读与比较：
+References identified for further reading and comparison:
 
-- Robin R. Wang, Can a Machine Flow Like Dao? The Daoist Philosophy on Artificial Intelligence (2021): https://digitalcommons.lmu.edu/phil_fac/353/
-- Ruling Without Rulers: A Daoist Political Framework for AI Governance (2025), DOI: 10.23368/hyufcs.2025..14.006
-- Constitutional AI: Harmlessness from AI Feedback: https://www.anthropic.com/news/constitutional-ai-harmlessness-from-ai-feedback
-- NeMo Guardrails: A Toolkit for Controllable and Safe LLM Applications with Programmable Rails: https://arxiv.org/abs/2310.10501
-- NIST AI RMF: https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10
+- Robin R. Wang, [Can a Machine Flow Like Dao? The Daoist Philosophy on Artificial Intelligence](https://digitalcommons.lmu.edu/phil_fac/353/) (2021).
+- Ruling Without Rulers: A Daoist Political Framework for AI Governance (2025), DOI: 10.23368/hyufcs.2025..14.006.
+- [Constitutional AI: Harmlessness from AI Feedback](https://www.anthropic.com/news/constitutional-ai-harmlessness-from-ai-feedback).
+- [NeMo Guardrails: A Toolkit for Controllable and Safe LLM Applications with Programmable Rails](https://arxiv.org/abs/2310.10501).
+- [NIST AI Risk Management Framework](https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10).
 
-这些资料不构成全面的新颖性检索，更不构成对 TAHU 的支持或背书。
+This list is not a comprehensive novelty search or an endorsement of TAHU.
 
-## v0.2 研究计划
+## Historical v0.2 research plan
 
-1. 重点比较动态信息流控制、污点追踪、Agent 会话隔离与能力授权工作；列出逐项差异，允许结论是“尚无新机制”。
-2. 研究由可信宿主管理的上下文隔离：将受限任务和公开任务分开，让公开任务只接收核准输入。不能只靠模型声称“忘记秘密”。需要测量隔离成本与任务可用性。
-3. 接入真实模型，在同样模型、工具和任务条件下比较基准与 TAHU。模型访问与费用需在实施时明确；本版未产生模型调用费用。
-4. 固定开发集，新增由独立人员编写的保留测试集；冻结规则后再评测。覆盖遗漏来源、并发、重启、授权复用与提示注入。对多次随机运行报告区间而非只挑最佳结果。
-5. 在运行前确定主要指标：越权执行率、正常任务完成率、误拦率、延迟、成本。成功阈值依据部署需求预先制定，不能看完结果再修改。
-6. 公开失败案例和代码，请独立复现。仅在明确差异及证据成立后写研究贡献声明。
+This section preserves the plan recorded with v0.1; consult the current documentation for subsequent implementation and evidence.
 
-目前适合称为“TAHU 研究原型及开发实验”，不适合称为“已验证成功的通用 AI 制衡系统”。
+1. Compare dynamic information-flow control, taint tracking, agent-session isolation and capability authorization, allowing a conclusion of no new mechanism.
+2. Investigate trusted-host context isolation between restricted and public tasks, with only approved inputs supplied to public tasks. Measure isolation cost and utility instead of relying on a model claiming to forget secrets.
+3. Integrate a real model and compare baseline and TAHU with identical model, tools and tasks. Establish access and cost at implementation time; this prototype incurred no model-call charges.
+4. Freeze the development set and add independently authored held-out cases covering omitted provenance, concurrency, restarts, approval reuse and prompt injection. Report variation across repeated runs rather than selecting the best result.
+5. Predeclare unauthorized execution rate, legitimate completion, false blocks, latency and cost, with deployment-based targets fixed before observing results.
+6. Publish failures and code for independent reproduction, and state research contributions only when differences and evidence support them.
+
+This version is a research prototype and development experiment, not a validated general AI control system.
