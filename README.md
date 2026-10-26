@@ -220,7 +220,7 @@ State is saved under `.tahu/`. `operator.json` contains a generated credential. 
 
 ## Evaluation
 
-The committed [machine-readable report](reports/latest.json) records the actual local run. On 2026-10-26, **118 tests passed and 5 were skipped**: four Docker integration checks and one Windows symlink-privilege check. The separate-process HTTP demonstration also passed. The Linux isolation CI job supplies separate real-container evidence. Tests cover malformed requests, privilege separation, provenance omission, cross-task access, replay, approval reuse, concurrent grant consumption, expiry, restart persistence, audit mutation, transactional rollback and guarded local mail execution.
+The committed [machine-readable report](reports/latest.json) records the actual local run. On 2026-10-26, **121 tests passed and 5 were skipped**: four Docker integration checks and one Windows symlink-privilege check. The separate-process HTTP demonstration also passed. The Linux isolation CI job supplies separate real-container evidence. Tests cover malformed requests, privilege separation, provenance omission, cross-task access, replay, approval reuse, concurrent grant consumption, expiry, restart persistence, audit mutation, transactional rollback and guarded local mail execution.
 
 The [local execution boundary](docs/execution-boundary.md) now rechecks authorization before SMTP delivery and denies queued work after stop. Eight forced dangerous requests produced zero guarded receiver effects, and both normal controls completed. These are developer-authored deterministic probes; no new live-model effectiveness result is claimed. The Python host and its executor capability remain trusted.
 
@@ -247,6 +247,7 @@ In v0.2, even an existing public artifact cannot be sent publicly by a task expo
 - [Live agent evaluation and measured limits](docs/live-agent-evaluation.md)
 - [Architecture and trust boundary](docs/architecture.md)
 - [Guarded local execution, stop races and recovery](docs/execution-boundary.md)
+- [Independent model lifecycle comparison and recovery protocol](docs/live-lifecycle.md)
 - [API and Python integration](docs/api.md)
 - [Threat model and known limits](docs/threat-model.md)
 - [Roadmap and release gates](docs/roadmap.md)

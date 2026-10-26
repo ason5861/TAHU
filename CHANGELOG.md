@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — independent live lifecycle validation, 2026-10-26
+
+- Add opt-in independent neutral-prompt, prompt-only and TAHU drafting runs over the unchanged six-task mail corpus with fixed call budgets and identical job inputs.
+- Connect actual model drafts to guarded local SMTP, controlled lost acknowledgements, receipt reconciliation and same-ID replay. Record actual captures, model refusals, errors, completion, tokens and timing separately.
+- Keep native tools and startup isolation restricted in every arm; the neutral-prompt treatment changes only drafting instructions in the explicit synthetic baseline.
+- Preserve the original four legitimate and three attack task denominators, failed calls and historical reports. Recovery timing is reported as fault-injected work, not ordinary enforcement overhead.
+
 ## Unreleased — durable receipt recovery and versioned probes, 2026-10-26
 
 - Keep guarded receiver captures in a separate SQLite database, committed before acknowledgement. Deduplicate exact execution-ID replays and reject conflicting payloads under the same ID.
