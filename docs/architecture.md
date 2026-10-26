@@ -19,6 +19,13 @@ Each step acquires a SQLite `BEGIN IMMEDIATE` transaction. Stop/expiry/attempt c
 
 Outbox insertion, approval consumption, operation counter, exposure update, receipt and audit record commit together. Failure rolls all of them back. Concurrent send attempts cannot both consume a single approval. A stop request linearizes when its transaction commits; an action already committed before that point cannot be undone. There is no external network side effect inside this transaction.
 
+The optional [guarded local mail executor](execution-boundary.md) uses a separate
+execution manifest and operator-only endpoint after enqueue. Its second
+transaction revalidates authority and deliberately holds the write lock across
+bounded loopback SMTP. Stop commits before that effect or waits for it to
+finish. An interrupted durable start yields UNKNOWN without blind retry.
+This is a local experiment connector; arbitrary remote effects are not covered.
+
 ## Data flow
 
 Only the operator creates initial labels. `read` returns the artifact text and adds its labels to task exposure. `derive` inherits the union of explicit source labels and current exposure. `send` checks the union of artifact labels and task exposure. Unknown labels cannot be declassified through approval.

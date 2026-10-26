@@ -84,6 +84,21 @@ Send the latter to `/v1/stop`. No resume endpoint exists. A trusted operator can
 
 ## Model integration contract
 
+### Optional guarded local mail executor
+
+When `make_server(..., mail_executor=...)` is configured by the trusted host,
+the operator can call `/v1/execute-mail` with `{"delivery_id":"<outbox ID>"}`.
+Task tokens receive HTTP 403. Without an executor this endpoint returns HTTP 503.
+The caller cannot supply text, destinations, network addresses or executable
+commands. The executor uses the stored, revalidated outbox entry only.
+
+Responses distinguish `SUCCEEDED`, `DENIED` and `UNKNOWN`. A completed replay
+returns its recorded result without another SMTP effect. An interrupted
+`EXECUTING` record is returned as `UNKNOWN`; do not retry it automatically.
+`SUCCEEDED` means the local receiver acknowledged capture, not Internet delivery.
+See [execution-boundary.md](execution-boundary.md) for stop ordering, durability,
+fixture setup and the trusted-host limits. The ordinary CLI remains outbox-only.
+
 ```python
 from tahu.client import Client
 

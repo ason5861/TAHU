@@ -19,21 +19,14 @@ configuration has not been tested; none is advertised as ready. Adding a cloud
 environment before it improves this small standard-library example would add
 account, permission and potential billing steps.
 
-## License decision for the owner
+## License
 
-No license has been selected. This is an adoption obstacle: developers do not
-have a clear general grant to reuse or redistribute the code. This document
-does not grant a license. Two choices worth reviewing:
-
-| Choice | Why it could fit | Obligations / distinction |
-|---|---|---|
-| [MIT](https://choosealicense.com/licenses/mit/) | Short permissive license for a small library | Preserve copyright and license notice; no express contributor patent grant |
-| [Apache-2.0](https://choosealicense.com/licenses/apache-2.0/) | Permissive adoption with an explicit contributor patent grant | Preserve relevant notices and state modifications; no trademark grant |
-
-Apache-2.0 is a reasonable option if explicit patent terms matter to intended
-integrators; MIT is simpler if the owner prioritizes a short license. The owner
-must choose and confirm the right to license the included code before adding a
-LICENSE file. No choice has been applied automatically.
+The owner selected Apache-2.0. See the complete [LICENSE](../LICENSE) and
+[NOTICE](../NOTICE). Commercial use and modifications are permitted under its
+terms, including preservation of applicable notices and identification of
+modified files. The license includes an express contributor patent grant and
+does not grant trademark rights. Referenced papers, separately installed tools
+and container base images retain their own licenses.
 
 ## Community drafts — not published
 
