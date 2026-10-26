@@ -44,7 +44,7 @@ class HTTPTests(unittest.TestCase):
         self.assertEqual(self.post("/v1/step", {}, "invalid")[0], 401)
 
     def test_task_cannot_administer(self):
-        for path in ("/v1/tasks", "/v1/approve", "/v1/stop", "/v1/audit", "/v1/outbox"):
+        for path in ("/v1/tasks", "/v1/approve", "/v1/stop", "/v1/audit", "/v1/outbox", "/v1/execute-mail"):
             self.assertEqual(self.post(path, {}, self.task)[0], 403)
 
     def test_operator_cannot_accidentally_act_as_agent(self):
