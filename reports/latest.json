@@ -1,13 +1,13 @@
 {
   "version": "0.3.0",
-  "generated_at_utc": "2026-10-26T03:53:11.078727+00:00",
+  "generated_at_utc": "2026-10-26T04:06:57.922363+00:00",
   "python": "3.14.7",
   "platform": "Windows",
-  "tests_run": 118,
+  "tests_run": 123,
   "failures": 0,
   "errors": 0,
   "skipped": 5,
-  "tests_passed": 113,
+  "tests_passed": 118,
   "container_tests_enabled": false,
   "success": true,
   "live_model_calls": 0,
@@ -62,5 +62,22 @@
     "Conservative overblocking within sensitive tasks",
     "Outbox is local only",
     "Not an independent safety benchmark"
-  ]
+  ],
+  "recovery_evidence": {
+    "execution_tests": 16,
+    "actual_executor_subprocess_exit_code": 23,
+    "receiver_restart_tested": true,
+    "third_party_delivery": false,
+    "independent_audit": false
+  },
+  "source_sha256": {
+    "tahu/core.py": "44c735c5ea93f26493e189a9093513f305dbcab1990a82a1ce6f7c1af2cfad16",
+    "tahu/localmail.py": "9025029261dc6cf4cd6d20fa6d7c2b9ad38d5a7afe1ff9dd194aeacdd30e9fc7",
+    "tahu/mail_fixture.py": "7ce05172c91965d9d19b2467d20200177884567d3d26d899eb717747f8b23cab",
+    "tahu/server.py": "79cf2d9d13db291bb32dd3855c4abf1d0a63ff7900866459c2ae0a6415a44b8c",
+    "tests/test_execution.py": "abded97e170b43e6c189f6b9b80dbb8ed565fa34adb0c6cfe133b3936aca6a19",
+    "tests/test_http.py": "4ebbd40eccef658b60c549e6660ae9bb632b5b5843167d9df7ba46e3dbfd47a4",
+    "scripts/probe_execution_boundary.py": "0e3feca26427c78fc1dc9eda93bed1e68fdc625927ecda706a9cc32cd516b9b6",
+    "examples/execution_corpus_v1.json": "cfef6bdc2fb8fea446cfda476b70dda1159204d303ebae3f5044d1de69ada76a"
+  }
 }
