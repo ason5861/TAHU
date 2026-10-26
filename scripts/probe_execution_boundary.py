@@ -8,6 +8,7 @@ import datetime
 import hashlib
 import json
 import sys
+import time
 from pathlib import Path
 from urllib.error import HTTPError
 
@@ -19,15 +20,20 @@ from tahu.mail_fixture import mail_gateway
 
 
 SECRET = "BOUNDARY_SYNTHETIC_SECRET_26"
-CASES = ("restricted_public", "omitted_sources", "untrusted_internal",
-         "unknown_internal", "stopped_after_approval", "destination_substitution",
-         "payload_substitution", "unsupported_tool")
+CORPUS = ROOT / "examples/execution_corpus_v1.json"
 
 
 def probe():
+    started = time.perf_counter()
+    raw_corpus = CORPUS.read_bytes()
+    corpus = json.loads(raw_corpus)
+    cases = tuple(row["id"] for row in corpus["cases"])
+    expected = {row["id"]: row["expected_reason"] for row in corpus["cases"]}
+    categories = {row["id"]: row["category"] for row in corpus["cases"]}
     rows = []
     with mail_gateway() as (operator, url, sink, guarded):
-        for name in CASES + ("normal_public", "normal_internal"):
+        for name in cases + tuple(corpus["normal_controls"]):
+            case_started = time.perf_counter()
             identity = operator.call("/v1/tasks", {
                 "id": name, "purpose": "Forced execution boundary probe",
                 "budget": 20, "attempt_limit": 40, "ttl": 300,
@@ -67,7 +73,7 @@ def probe():
                 request = {"request_id": "forced", "op": "exec", "id": "private"}
             before = len(sink.messages)
             # Control: a compromised trusted host can call the sink directly.
-            if name in CASES:
+            if name in cases:
                 sink.send(SECRET, "public", "control-" + name)
             control = len(sink.messages) - before
             before = len(guarded.messages)
@@ -77,9 +83,10 @@ def probe():
                 execution = operator.call("/v1/execute-mail", {"delivery_id": delivery})
                 if execution["status"] != "SUCCEEDED":
                     raise RuntimeError("normal_control_execution_failed")
-            rows.append({"case": name, "attack": name in CASES, "request_reached_http_gateway": True,
+            rows.append({"case": name, "category": categories.get(name, "legitimate"), "attack": name in cases, "request_reached_http_gateway": True,
                          "decision": decision, "no_enforcement_receiver_count": control,
-                         "gated_receiver_count": len(guarded.messages) - before})
+                         "gated_receiver_count": len(guarded.messages) - before,
+                         "elapsed_seconds": round(time.perf_counter() - case_started, 6)})
 
         # Task credentials cannot call the privileged outbox export endpoint.
         try:
@@ -104,12 +111,15 @@ def probe():
 
     attacks = [row for row in rows if row["attack"]]
     controls = [row for row in rows if not row["attack"]]
-    passed = (all(not row["decision"]["allowed"] and row["gated_receiver_count"] == 0 for row in attacks)
+    passed = (all(not row["decision"]["allowed"] and row["gated_receiver_count"] == 0
+                  and row["decision"]["reason"] == expected[row["case"]] for row in attacks)
               and all(row["no_enforcement_receiver_count"] == 1 for row in attacks)
               and all(row["gated_receiver_count"] == 1 for row in controls)
               and role_status == 403 and audit["valid"] and direct_blocked and after_stop_result["status"] == "DENIED" and after_stop == 0)
     sources = ("scripts/probe_execution_boundary.py", "tahu/core.py", "tahu/server.py", "tahu/localmail.py", "tahu/mail_fixture.py")
     return {"generated_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "corpus_version": corpus["version"], "corpus_sha256": hashlib.sha256(raw_corpus).hexdigest(),
+            "elapsed_seconds": round(time.perf_counter() - started, 6),
             "method": "Developer-authored deterministic forced requests, not independent live-model runs",
             "model_calls": 0, "external_deliveries": 0, "attack_requests": len(attacks),
             "gated_unauthorized_smtp_effects": sum(row["gated_receiver_count"] for row in attacks),
