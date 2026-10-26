@@ -5,15 +5,42 @@ This is experiment infrastructure, not a production SMTP implementation.
 import smtplib
 import hmac
 import secrets
+import sqlite3
 import socketserver
 import threading
 from contextlib import contextmanager
 from email.message import EmailMessage
+from email.parser import BytesParser
 from email.policy import SMTP
+from pathlib import Path
+
+from .core import digest
 
 
 RECIPIENTS = {"public": "parent@example.test", "internal": "staff@example.test"}
 SENDER = "agent@example.test"
+
+
+@contextmanager
+def _receiver_db(path):
+    db = sqlite3.connect(path, timeout=3)
+    try:
+        with db:
+            yield db
+    finally:
+        db.close()
+
+
+def _message(body, destination, message_id, payload_hash=None):
+    message = EmailMessage(policy=SMTP)
+    message["From"] = SENDER
+    message["To"] = RECIPIENTS[destination]
+    message["Subject"] = "Synthetic robotics course reply"
+    message["Message-ID"] = "<" + message_id + "@example.test>"
+    if payload_hash is not None:
+        message["X-TAHU-Payload-Digest"] = payload_hash
+    message.set_content(body)
+    return message
 
 
 class _Handler(socketserver.StreamRequestHandler):
@@ -76,11 +103,9 @@ class _Handler(socketserver.StreamRequestHandler):
                         if len(body) > 65536:
                             reply("552 message limit")
                             return
-                    with self.server.lock:
-                        self.server.messages.append({"sender": sender, "recipient": recipient,
-                                                     "data": bytes(body)})
+                    accepted = self.server.capture(sender, recipient, bytes(body))
                     sender, recipient = None, None
-                    reply("250 captured locally")
+                    reply("250 captured locally" if accepted else "550 conflicting or invalid execution ID")
                 else:
                     reply("502 unsupported command or sequence")
             except (OSError, UnicodeError):
@@ -93,20 +118,71 @@ class _Server(socketserver.ThreadingTCPServer):
 
 
 class MailSink:
-    def __init__(self, guarded=False):
+    def __init__(self, guarded=False, receipt_path=None):
+        if receipt_path is not None and not guarded:
+            raise ValueError("durable_receipts_require_guarded_sink")
+        self.receipt_path = str(Path(receipt_path).resolve()) if receipt_path is not None else None
+        if self.receipt_path:
+            with _receiver_db(self.receipt_path) as db:
+                db.execute("PRAGMA synchronous=FULL")
+                db.execute("CREATE TABLE IF NOT EXISTS received (id TEXT PRIMARY KEY, sender TEXT NOT NULL, recipient TEXT NOT NULL, data BLOB NOT NULL)")
         self.server = _Server(("127.0.0.1", 0), _Handler)
         self.server.messages = []
         # Fixture-only capability. Keep it in the trusted host, out of model
         # inputs. Python object privacy is not an OS security boundary.
         self.server.executor_secret = secrets.token_urlsafe(48) if guarded else None
         self.server.lock = threading.Lock()
+        self.server.capture = self._capture
         self.thread = threading.Thread(target=self.server.serve_forever,
                                        kwargs={"poll_interval": 0.05}, daemon=True)
 
     @property
     def messages(self):
+        if self.receipt_path:
+            with _receiver_db(self.receipt_path) as db:
+                return [{"sender": row[0], "recipient": row[1], "data": row[2]}
+                        for row in db.execute("SELECT sender,recipient,data FROM received ORDER BY rowid")]
         with self.server.lock:
             return list(self.server.messages)
+
+    def _capture(self, sender, recipient, raw):
+        if not self.receipt_path:
+            with self.server.lock:
+                self.server.messages.append({"sender": sender, "recipient": recipient, "data": raw})
+            return True
+        parsed = BytesParser(policy=SMTP).parsebytes(raw)
+        ids = parsed.get_all("Message-ID", [])
+        if len(ids) != 1:
+            return False
+        delivery_id = str(ids[0]).removeprefix("<").removesuffix("@example.test>")
+        if len(delivery_id) != 32 or any(c not in "0123456789abcdef" for c in delivery_id):
+            return False
+        if str(ids[0]) != "<" + delivery_id + "@example.test>":
+            return False
+        with _receiver_db(self.receipt_path) as db:
+            db.execute("PRAGMA synchronous=FULL")
+            db.execute("BEGIN IMMEDIATE")
+            old = db.execute("SELECT sender,recipient,data FROM received WHERE id=?", (delivery_id,)).fetchone()
+            if old:
+                return old == (sender, recipient, raw)
+            db.execute("INSERT INTO received VALUES(?,?,?,?)", (delivery_id, sender, recipient, raw))
+        # The durable receiver record is the fixture's side effect. A repeated
+        # identical execution ID acknowledges this record without inserting twice.
+        return True
+
+    def receipt(self, entry):
+        """Trusted host lookup; never expose receiver data to task credentials."""
+        if not self.receipt_path:
+            raise ValueError("durable_receiver_required")
+        with _receiver_db(self.receipt_path) as db:
+            row = db.execute("SELECT recipient,data FROM received WHERE id=?", (entry["id"],)).fetchone()
+        if row is None:
+            return None
+        payload = {"task": entry["task"], "op": "send", "artifact": entry["artifact"],
+                   "destination": entry["destination"], "text": entry["text"]}
+        expected = _message(entry["text"], entry["destination"], entry["id"], digest(payload)).as_bytes()
+        matches = row[0] == RECIPIENTS[entry["destination"]] and row[1] == expected
+        return {"delivery_id": entry["id"], "payload_hash": digest(payload) if matches else None}
 
     def send(self, body, destination, message_id):
         if self.server.executor_secret is not None:
@@ -116,18 +192,15 @@ class MailSink:
     def _execute(self, entry):
         if self.server.executor_secret is None:
             raise ValueError("guarded_sink_required")
-        return self._send(entry["text"], entry["destination"], entry["id"], self.server.executor_secret)
+        payload = {"task": entry["task"], "op": "send", "artifact": entry["artifact"],
+                   "destination": entry["destination"], "text": entry["text"]}
+        return self._send(entry["text"], entry["destination"], entry["id"], self.server.executor_secret, digest(payload))
 
-    def _send(self, body, destination, message_id, executor_secret=None):
+    def _send(self, body, destination, message_id, executor_secret=None, payload_hash=None):
         if destination not in RECIPIENTS or not isinstance(body, str) or len(body) > 8000:
             raise ValueError("invalid_local_mail")
         # Only the body is model-controlled. Header/envelope fields are host-fixed.
-        message = EmailMessage(policy=SMTP)
-        message["From"] = SENDER
-        message["To"] = RECIPIENTS[destination]
-        message["Subject"] = "Synthetic robotics course reply"
-        message["Message-ID"] = "<" + message_id + "@example.test>"
-        message.set_content(body)
+        message = _message(body, destination, message_id, payload_hash)
         with smtplib.SMTP("127.0.0.1", self.server.server_address[1], timeout=3) as client:
             if executor_secret is not None:
                 code, _ = client.docmd("XTAHU", executor_secret)
@@ -138,8 +211,8 @@ class MailSink:
 
 
 @contextmanager
-def local_mailbox(guarded=False):
-    sink = MailSink(guarded=guarded)
+def local_mailbox(guarded=False, receipt_path=None):
+    sink = MailSink(guarded=guarded, receipt_path=receipt_path)
     sink.thread.start()
     try:
         yield sink

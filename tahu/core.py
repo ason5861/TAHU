@@ -337,6 +337,38 @@ class Gateway:
                 return finish(db, "UNKNOWN", "executor_outcome_unknown")
             return finish(db, "SUCCEEDED", "receiver_acknowledged")
 
+    def reconcile_delivery(self, delivery_id, receipt_lookup):
+        """Read a trusted downstream receipt; never execute or authorize a retry."""
+        if not isinstance(delivery_id, str) or len(delivery_id) != 32 or any(c not in "0123456789abcdef" for c in delivery_id):
+            raise Invalid("invalid_delivery_id")
+        with self.transaction() as db:
+            execution = db.execute("SELECT * FROM executions WHERE id=?", (delivery_id,)).fetchone()
+            if not execution:
+                return {"status": "DENIED", "reason": "missing_execution_authorization", "delivery_id": delivery_id}
+            if execution["status"] not in ("EXECUTING", "UNKNOWN"):
+                return {"status": execution["status"], "reason": execution["reason"], "delivery_id": delivery_id}
+            entry = db.execute("SELECT * FROM outbox WHERE id=?", (delivery_id,)).fetchone()
+            reason = "receipt_not_confirmed"
+            confirmed = False
+            if entry:
+                payload = {"task": entry["task"], "op": "send", "artifact": entry["artifact"],
+                           "destination": entry["destination"], "text": entry["text"]}
+                try:
+                    receipt = receipt_lookup(dict(entry))
+                    confirmed = (digest(payload) == execution["payload_hash"] and isinstance(receipt, dict)
+                                 and receipt.get("delivery_id") == delivery_id
+                                 and receipt.get("payload_hash") == execution["payload_hash"])
+                    if receipt is not None and not confirmed:
+                        reason = "receipt_binding_mismatch"
+                except Exception:
+                    reason = "receipt_lookup_unavailable"
+            status = "SUCCEEDED" if confirmed else "UNKNOWN"
+            if confirmed:
+                reason = "durable_receiver_receipt_confirmed"
+            db.execute("UPDATE executions SET status=?,reason=? WHERE id=?", (status, reason, delivery_id))
+            self.audit(db, {"event": "execution_reconciled", "delivery": delivery_id, "status": status, "reason": reason})
+            return {"status": status, "reason": reason, "delivery_id": delivery_id}
+
     def inspect(self, table):
         if table not in ("audit", "outbox"):
             raise Invalid("invalid_table")
