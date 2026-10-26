@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — durable receipt recovery and versioned probes, 2026-10-26
+
+- Keep guarded receiver captures in a separate SQLite database, committed before acknowledgement. Deduplicate exact execution-ID replays and reject conflicting payloads under the same ID.
+- Add operator-only receipt reconciliation for UNKNOWN or interrupted executions; confirm only the bound complete payload and recipient, including the original digest and exact MIME bytes. Missing or conflicting receipts never authorize retries.
+- Exercise lost acknowledgements, gateway/receiver restart, a real executor subprocess exiting after capture, conflicting IDs and reconciliation after stop. Close receiver database handles explicitly for Windows cleanup.
+- Freeze the eight-case forced-request development corpus as `execution-boundary-v1`, record its digest and categories, and run the probe in Windows/Linux CI. This does not replace independent live-model prompt-only comparisons.
+
 ## Unreleased — guarded local execution and Apache-2.0, 2026-10-26
 
 - Bind queued mail execution to the complete payload, task policy digest and enforcement version; recheck stop, expiry, labels and approval expiry immediately before the bounded local effect.
