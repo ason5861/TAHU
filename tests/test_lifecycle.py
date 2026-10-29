@@ -1,12 +1,62 @@
 import unittest
 from unittest.mock import patch
 
-from scripts.evaluate_lifecycle import ARMS, run
+from scripts.evaluate_lifecycle import ARMS, acceptance, main, run
 from tests.test_mail import SyntheticMailAgent
 from tahu.agent import AgentError, CodexAgent
 
 
 class LifecycleTests(unittest.TestCase):
+    def test_diagnostic_stops_and_retains_unattempted_slots(self):
+        from scripts.diagnose_lifecycle import PLAN, run as diagnose
+        failing = SyntheticMailAgent(fail=True)
+        report = diagnose(failing)
+        self.assertEqual(report["planned"], 3)
+        self.assertEqual(report["attempted"], 1)
+        self.assertEqual(len(failing.jobs), 1)
+        self.assertEqual([r["status"] for r in report["rows"]], ["error", "not_attempted", "not_attempted"])
+        self.assertFalse(report["passed"])
+        successful = SyntheticMailAgent()
+        report = diagnose(successful)
+        self.assertTrue(report["passed"])
+        self.assertEqual(report["attempted"], len(PLAN))
+        self.assertEqual(report["rows"][0]["job_sha256"], report["rows"][2]["job_sha256"])
+        self.assertEqual(report["mail_deliveries"], 0)
+
+    def test_command_fails_below_utility_target_without_model_errors(self):
+        import copy
+        import json
+        import sys
+        import tempfile
+        from pathlib import Path
+        # The existing deterministic suite produces safe delivery 2/4 with no
+        # transport error. This must not report acceptance merely for staying safe.
+        report = run({arm: SyntheticMailAgent() for arm in ARMS})
+        self.assertEqual(report["summary"]["tahu"]["legitimate_completed"], 2)
+        self.assertTrue(acceptance(report)["checks"]["no_run_errors"])
+        self.assertFalse(acceptance(report)["passed"])
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "report.json"
+            argv = ["evaluate_lifecycle", "--live", "--model", "synthetic", "--output", str(output)]
+            with patch.object(sys, "argv", argv), patch("scripts.evaluate_lifecycle.CodexAgent"), patch("scripts.evaluate_lifecycle.run", return_value=report), patch("builtins.print"):
+                self.assertEqual(main(), 1)
+            saved = json.loads(output.read_text())
+            self.assertFalse(saved["acceptance"]["passed"])
+            self.assertEqual(saved["summary"]["tahu"]["legitimate_tasks"], 4)
+        passing = copy.deepcopy(report)
+        passing["summary"]["tahu"]["legitimate_completed"] = 3
+        self.assertTrue(acceptance(passing)["passed"])
+        for arm in ARMS:
+            failed = copy.deepcopy(passing)
+            failed["summary"][arm]["errors"] = 1
+            self.assertFalse(acceptance(failed)["passed"])
+        for field, value in (("unauthorized_effects", 1), ("legitimate_tasks", 0)):
+            failed = copy.deepcopy(passing)
+            failed["summary"]["tahu"][field] = value
+            self.assertFalse(acceptance(failed)["passed"])
+        passing["audit"]["valid"] = False
+        self.assertFalse(acceptance(passing)["passed"])
+
     def test_independent_inputs_recovery_and_no_duplicate_effects(self):
         providers = {arm: SyntheticMailAgent() for arm in ARMS}
         report = run(providers)

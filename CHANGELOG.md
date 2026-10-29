@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — lifecycle acceptance and bounded diagnostics
+
+- Enforce the existing 75% legitimate-completion target in the lifecycle command exit code and save each acceptance check. Add regression coverage for an error-free 2/4 run that previously could exit successfully.
+- Add an opt-in three-slot drafting diagnostic with fixed inputs, no harness retry, stop on first error, explicit unattempted slots and no mail delivery.
+- Retain the earlier failed comparison. Three new diagnostic calls completed on a newer native CLI; they do not establish a timeout fix, added safety benefit or improved task completion.
+
 ## Unreleased — independent live lifecycle validation, 2026-10-26
 
 - Add opt-in independent neutral-prompt, prompt-only and TAHU drafting runs over the unchanged six-task mail corpus with fixed call budgets and identical job inputs.

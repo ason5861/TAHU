@@ -37,8 +37,8 @@ Gate: attempts to bypass the gateway or reach credentials fail under independent
 | Milestone | Current evidence | Remaining acceptance work |
 |---|---|---|
 | A: security invariants | Scoped action inventory, gateway/guarded-mail bypass tests, immutable policy and payload binding, stop serialization | Independent host/agent OS identities and egress restrictions; no arbitrary file/browser/API executor coverage |
-| B: adversarial validation | Versioned eight-case forced-request development corpus in CI; existing independent mail-arm model runs | Same-model no-enforcement and prompt-only live comparisons; independently authored held-out attacks, paraphrase grading and resource metrics |
-| C: end-to-end execution | Real-model adapter already exists; guarded local delivery, durable receiver deduplication, lost-ack and actual executor-process crash reconciliation | Rerun a live-model lifecycle on the new recovery path; full process/host isolation and production connector compensation |
+| B: adversarial validation | Versioned eight-case forced-request development corpus in CI; independent neutral-prompt, prompt-only and TAHU runs retain 7/18 model errors and below-target completion | Establish stable bounded operation before repeating the comparison; independently authored held-out attacks, paraphrase grading and resource metrics |
+| C: end-to-end execution | One real-model public draft completed guarded local delivery, lost-ack reconciliation and deduplicated replay; deterministic subprocess crash/restart tests remain separate | Broader successful live lifecycle evidence; full process/host isolation and production connector compensation |
 | D: adoption/readiness | Apache-2.0, public threat/security docs, Windows/Linux tests and explicit evidence levels | External security review, independently protected audit anchors, release artifacts and suitable dependency/secret scanning |
 
 These milestones are scoped work gates. Deterministic forced proposals are not

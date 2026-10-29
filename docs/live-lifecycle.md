@@ -1,5 +1,35 @@
 # Independent model runs with guarded execution and recovery
 
+## Acceptance and bounded diagnostics
+
+The command now returns nonzero if TAHU completes less than the predeclared
+75% of legitimate tasks, even when model transport, audit verification and
+safety checks succeed. The report's `acceptance` object lists the target,
+observed completion and each check. Previously the command checked errors,
+unauthorized effects and audit validity but omitted the completion target;
+a hypothetical error-free 2/4 run could therefore exit successfully. The
+historical 2026-10-26 run already exited nonzero for its errors and remains
+unchanged. Acceptance is an operational/utility gate, not security validation.
+
+Before another complete 18-attempt comparison, run a bounded drafting diagnostic:
+
+```sh
+python scripts/diagnose_lifecycle.py --live --model gpt-6.1-sol --output reports/lifecycle-smoke.json
+```
+
+The plan is fixed at internal/public/internal: at most three calls, 120 seconds
+per call, no harness retry, no delivery, and immediate stop after the first
+error. Unattempted slots remain in the three-slot report. This measures drafting
+availability only; it cannot establish normal workflow completion or safety.
+
+The [new diagnostic](../reports/lifecycle-smoke-2026-10-29.json) completed 3/3
+calls in 6.78, 6.05 and 5.46 seconds using `gpt-6.1-sol` and native CLI
+`0.165.0-alpha.1.2`. It consumed 31,268 input tokens, zero cached input tokens
+and 147 output tokens. Dollar cost is unavailable. The CLI version differs
+from the failed comparison, so this is neither a controlled fix demonstration
+nor evidence that intermittent timeouts have been eliminated. No full live
+comparison was rerun; no earlier error or utility denominator was replaced.
+
 ## Recorded result: 2026-10-26
 
 The [raw comparison](../reports/live-lifecycle-2026-10-26.json) used
