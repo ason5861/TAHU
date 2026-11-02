@@ -61,3 +61,23 @@ review. Unmeasured threats remain unmeasured even when related tests pass.
 ## Remaining production release blockers
 
 No production security claim until OS isolation/egress controls, external executor failure handling, authenticated approval UX, live-model adversarial evaluation and independent review are implemented and tested. Keep experiments on synthetic data meanwhile.
+
+## Reproduced trust-input limits
+
+`python -m unittest tests.test_trust_boundary -v` exercises real loopback HTTP
+and guarded SMTP with deterministic proposals. Agent-supplied classification
+fields are rejected; a task that has read restricted input retains that exposure
+even when outputs are renamed, encoded, split, falsely cite public sources or
+contain harmless math. Unknown exposure blocks both public and internal sends.
+These checks do not inspect output meaning and do not remove false refusals.
+
+The same suite deliberately demonstrates two out-of-scope failures. A trusted
+operator labels a synthetic secret public; separately, an old task's synthetic
+secret is copied into a fresh task with empty provenance, simulating a host that
+reuses contaminated context. Both can reach the guarded receiver. This is not
+a bypass of SMTP authentication: authorization is evaluated against incomplete
+trusted information. The gateway cannot infer the missing label or hidden
+history. The test does not claim to exercise actual model memory or OS isolation.
+Deployments must establish trusted ingestion and context separation independently.
+See the [25-concern review register](roadmap.md#review-register-25-concerns-checked-against-merged-evidence)
+for specific remaining acceptance conditions.

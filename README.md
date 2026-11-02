@@ -20,6 +20,10 @@ This scripted demo starts its own HTTP gateway and local SMTP receiver. The trus
 
 ## Live agent evaluation
 
+### Trust-boundary evidence and open risks
+
+The [25-concern review register](docs/roadmap.md#review-register-25-concerns-checked-against-merged-evidence) now separates tested controls, reproduced limits and unverified product/commercial assumptions. New deterministic HTTP/SMTP tests preserve restricted exposure across transformed and split output, reject agent classification forgery and keep unknown data blocked. They also deliberately demonstrate two synthetic local deliveries when the trusted host mislabels a secret or carries old-task information into a fresh task. These counterexamples remain open host integration obligations, not fixed vulnerabilities or interception successes. No new live-model result or reduced false-refusal rate is claimed. [Threat limits and reproduction](docs/threat-model.md#reproduced-trust-input-limits).
+
 ### Startup inheritance repaired — 2026-10-22
 
 Christian's feedback led to a native-request capture: the former launch included
@@ -220,7 +224,7 @@ State is saved under `.tahu/`. `operator.json` contains a generated credential. 
 
 ## Evaluation
 
-The committed [machine-readable report](reports/latest.json) records the actual local run. On 2026-10-26, **121 tests passed and 5 were skipped**: four Docker integration checks and one Windows symlink-privilege check. The separate-process HTTP demonstration also passed. The Linux isolation CI job supplies separate real-container evidence. Tests cover malformed requests, privilege separation, provenance omission, cross-task access, replay, approval reuse, concurrent grant consumption, expiry, restart persistence, audit mutation, transactional rollback and guarded local mail execution.
+The committed [machine-readable report](reports/latest.json) records the actual local run. On 2026-11-02, **127 tests passed and 5 were skipped**: four Docker integration checks and one Windows symlink-privilege check. The separate-process HTTP demonstration also passed. The Linux isolation CI job supplies separate real-container evidence. Tests cover malformed requests, privilege separation, provenance omission, cross-task access, replay, approval reuse, concurrent grant consumption, expiry, restart persistence, audit mutation, transactional rollback and guarded local mail execution.
 
 The [local execution boundary](docs/execution-boundary.md) now rechecks authorization before SMTP delivery and denies queued work after stop. Eight forced dangerous requests produced zero guarded receiver effects, and both normal controls completed. These are developer-authored deterministic probes; no new live-model effectiveness result is claimed. The Python host and its executor capability remain trusted.
 
