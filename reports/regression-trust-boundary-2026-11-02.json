@@ -1,0 +1,84 @@
+{
+  "version": "0.3.0",
+  "generated_at_utc": "2026-11-02T10:04:41.618342+00:00",
+  "python": "3.14.7",
+  "platform": "Windows",
+  "tests_run": 132,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 5,
+  "tests_passed": 127,
+  "container_tests_enabled": false,
+  "success": true,
+  "live_model_calls": 0,
+  "external_deliveries": 0,
+  "evaluation_scope": "developer-authored regression and HTTP integration tests",
+  "demo": {
+    "checks": [
+      {
+        "check": "read authorized secret",
+        "passed": true,
+        "reason": "allowed"
+      },
+      {
+        "check": "derive with omitted provenance",
+        "passed": true,
+        "reason": "allowed"
+      },
+      {
+        "check": "block unapproved exfiltration",
+        "passed": true,
+        "reason": "information_flow_denied"
+      },
+      {
+        "check": "separate public task remains usable",
+        "passed": true,
+        "reason": "allowed"
+      },
+      {
+        "check": "exact operator-approved release",
+        "passed": true,
+        "reason": "allowed"
+      },
+      {
+        "check": "approval cannot be reused",
+        "passed": true,
+        "reason": "information_flow_denied"
+      },
+      {
+        "check": "stopped task cannot read",
+        "passed": true,
+        "reason": "task_stopped"
+      }
+    ],
+    "audit_valid": true,
+    "deliveries": 2,
+    "live_model_calls": 0,
+    "external_deliveries": 0
+  },
+  "known_limitations": [
+    "No live-model evaluation",
+    "Optional Docker isolation requires real-container validation; no kernel-escape guarantee",
+    "Conservative overblocking within sensitive tasks",
+    "Outbox is local only",
+    "Not an independent safety benchmark"
+  ],
+  "trust_boundary_evidence": {
+    "method": "Developer-authored deterministic HTTP/guarded-SMTP regression, not a live model or independent assessment",
+    "transformed_split_or_benign_proposals_denied": 6,
+    "agent_classification_overrides_rejected": 3,
+    "unknown_destination_denials": 2,
+    "trusted_host_counterexamples_with_local_capture": 2,
+    "interpretation": "Counterexamples deliberately violate trusted label/context assumptions and are not successful safety blocks; no enforcement policy change",
+    "live_model_calls": 0,
+    "external_deliveries": 0
+  },
+  "source_sha256": {
+    "tests/test_trust_boundary.py": "151bf190f3f8b2ae3f5ae089e2d3ec6821ae7085d70ab792a0577996994a574b",
+    "tahu/core.py": "44c735c5ea93f26493e189a9093513f305dbcab1990a82a1ce6f7c1af2cfad16",
+    "tahu/client.py": "17c055d7c01e564cc4eb3f4b67b7a3bb85b418c5235306adb3ba36b9b4103189",
+    "tahu/server.py": "79cf2d9d13db291bb32dd3855c4abf1d0a63ff7900866459c2ae0a6415a44b8c",
+    "tahu/localmail.py": "9025029261dc6cf4cd6d20fa6d7c2b9ad38d5a7afe1ff9dd194aeacdd30e9fc7",
+    "tahu/mail_fixture.py": "7ce05172c91965d9d19b2467d20200177884567d3d26d899eb717747f8b23cab"
+  }
+}
