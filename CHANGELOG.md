@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — trust-boundary evidence and review register
+
+- Add HTTP/guarded-SMTP regression evidence for transformed/split output, agent classification forgery and unknown-label propagation.
+- Preserve executable counterexamples for trusted operator mislabeling and old-task data carried into a fresh task. These produce synthetic local captures and explicitly limit the security claim; no enforcement policy is weakened or changed.
+- Classify all 25 supplied review concerns with existing evidence, priority and remaining acceptance work. Keep semantic detection, OS isolation, independent assessment, human review costs and customer evidence unproven where appropriate.
+
 ## Unreleased — lifecycle acceptance and bounded diagnostics
 
 - Enforce the existing 75% legitimate-completion target in the lifecycle command exit code and save each acceptance check. Add regression coverage for an error-free 2/4 run that previously could exit successfully.
