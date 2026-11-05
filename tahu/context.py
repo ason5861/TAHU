@@ -35,9 +35,12 @@ class PublicContextPlan:
         selected = []
         for name, expected_hash in self.records:
             record = registry.get(name)
-            if (not record or record.get("labels") != [] or not isinstance(record.get("text"), str)
-                    or hashlib.sha256(record["text"].encode()).hexdigest() != expected_hash):
+            if not record or record.get("labels") != []:
                 raise Invalid("public_record_changed_or_not_public")
-            selected.append({"id": name, "text": record["text"], "labels": []})
+            text = record.get("text")
+            if (type(text) is not str
+                    or hashlib.sha256(text.encode()).hexdigest() != expected_hash):
+                raise Invalid("public_record_changed_or_not_public")
+            selected.append({"id": name, "text": text, "labels": []})
         return {"request": self.request, "documents": selected, "history": [],
                 "operator_review_required": False}
