@@ -43,6 +43,18 @@ class PublicContextTests(unittest.TestCase):
             with self.subTest(records=records), self.assertRaises(Invalid):
                 PublicContextPlan(request, records)
 
+    def test_public_job_uses_the_same_text_value_that_passed_the_hash_check(self):
+        class RefreshingRecord(dict):
+            def __getitem__(self, key):
+                value = super().__getitem__(key)
+                if key == "text":
+                    self["text"] = "SYNTHETIC_SECRET"
+                return value
+
+        record = RefreshingRecord(self.record)
+        job = self.plan.job([record])
+        self.assertEqual(job["documents"], [self.record])
+
     def test_scoped_comparison_improves_one_task_without_releasing_injection(self):
         provider = SyntheticMailAgent()
         report = run_mail_evaluation(provider, workflow="public_context")
