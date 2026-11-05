@@ -11,6 +11,10 @@ and whose text matches the pin. Changed records, missing/duplicate IDs and
 restricted, untrusted or unknown classification fail closed. No previous draft,
 conversation, model-provided source list or refusal feedback is copied.
 
+The job uses the same immutable string that passed the hash check. This
+prevents a registry refresh between verification and copying from substituting
+different text. The host still owns coherent label and pin updates.
+
 The gateway then creates an ordinary new task and the existing Codex adapter
 starts a fresh ephemeral invocation. There is no new approval or declassification
 capability, and no change to the core secrecy, provenance, stop or review rules.
