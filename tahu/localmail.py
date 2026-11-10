@@ -175,13 +175,13 @@ class MailSink:
         if not self.receipt_path:
             raise ValueError("durable_receiver_required")
         with _receiver_db(self.receipt_path) as db:
-            row = db.execute("SELECT recipient,data FROM received WHERE id=?", (entry["id"],)).fetchone()
+            row = db.execute("SELECT sender,recipient,data FROM received WHERE id=?", (entry["id"],)).fetchone()
         if row is None:
             return None
         payload = {"task": entry["task"], "op": "send", "artifact": entry["artifact"],
                    "destination": entry["destination"], "text": entry["text"]}
         expected = _message(entry["text"], entry["destination"], entry["id"], digest(payload)).as_bytes()
-        matches = row[0] == RECIPIENTS[entry["destination"]] and row[1] == expected
+        matches = row == (SENDER, RECIPIENTS[entry["destination"]], expected)
         return {"delivery_id": entry["id"], "payload_hash": digest(payload) if matches else None}
 
     def send(self, body, destination, message_id):
