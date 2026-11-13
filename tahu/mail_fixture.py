@@ -12,13 +12,14 @@ from .server import make_server
 
 
 @contextmanager
-def mail_gateway():
+def mail_gateway(public_context=None):
     """Separate unguarded comparison sink and guarded TAHU execution sink."""
     with tempfile.TemporaryDirectory(prefix="tahu_mail_boundary_") as directory:
         gateway = Gateway(Path(directory) / "state.sqlite3")
         with local_mailbox() as baseline, local_mailbox(guarded=True, receipt_path=Path(directory) / "receiver.sqlite3") as guarded:
             operator_token = secrets.token_urlsafe(48)
-            server = make_server(gateway, operator_token, 0, mail_executor=guarded._execute, mail_receipts=guarded.receipt)
+            server = make_server(gateway, operator_token, 0, mail_executor=guarded._execute,
+                                 mail_receipts=guarded.receipt, public_context=public_context)
             thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True)
             thread.start()
             url = "http://127.0.0.1:" + str(server.server_port)

@@ -8,6 +8,7 @@ import sqlite3
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from .context import PublicContextPlan
 from .core import Gateway, Invalid, identifier
 
 
@@ -26,9 +27,18 @@ def strict_json(raw):
     return json.loads(raw, object_pairs_hook=pairs, parse_constant=invalid_constant)
 
 
-def make_server(gateway, operator_token, port=8765, mail_executor=None, mail_receipts=None):
+def make_server(gateway, operator_token, port=8765, mail_executor=None, mail_receipts=None,
+                public_context=None):
     if not isinstance(operator_token, str) or len(operator_token) < 32:
         raise Invalid("operator_token_must_have_at_least_32_characters")
+    public_jobs = {}
+    if public_context is not None:
+        for name, plan in public_context["plans"].items():
+            if not identifier(name):
+                raise Invalid("invalid_public_context_plan")
+            public_jobs[name] = PublicContextPlan(
+                plan["request"], tuple(tuple(pin) for pin in plan["records"])
+            ).job(public_context["records"])
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "TAHU/0.3"
@@ -97,6 +107,17 @@ def make_server(gateway, operator_token, port=8765, mail_executor=None, mail_rec
                 return self.reply(200, gateway.step(task, body))
             if not operator:
                 return self.reply(403, {"error": "operator_required"})
+            if self.path == "/v1/public-tasks":
+                if (not isinstance(body, dict) or set(body) != {"id", "plan"}
+                        or not identifier(body["plan"]) or body["plan"] not in public_jobs):
+                    raise Invalid("invalid_public_task_request")
+                job = public_jobs[body["plan"]]
+                identity = gateway.create_task({
+                    "id": body["id"], "purpose": "Configured public drafting",
+                    "budget": 20, "attempt_limit": 40, "ttl": 1800,
+                    "destinations": {"public": []}, "artifacts": job["documents"],
+                })
+                return self.reply(201, {"identity": identity, "job": job})
             if self.path == "/v1/tasks":
                 return self.reply(201, gateway.create_task(body))
             if self.path == "/v1/approve":
@@ -135,6 +156,7 @@ def main():
     parser.add_argument("command", choices=("init", "serve"))
     parser.add_argument("--state", default=".tahu")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--public-context", type=Path, help="Operator-owned public plans and source registry")
     args = parser.parse_args()
     state = Path(args.state).resolve()
     config = state / "operator.json"
@@ -149,7 +171,8 @@ def main():
         return
     credential = json.loads(config.read_text(encoding="utf-8"))["token"]
     gateway = Gateway(state / "state.sqlite3")
-    server = make_server(gateway, credential, args.port)
+    public_context = strict_json(args.public_context.read_bytes()) if args.public_context else None
+    server = make_server(gateway, credential, args.port, public_context=public_context)
     print(f"TAHU listening on http://127.0.0.1:{server.server_port}; local outbox only", flush=True)
     try:
         server.serve_forever()
