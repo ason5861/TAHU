@@ -23,6 +23,39 @@ Python helper is not a sandbox and cannot make a previously exposed model clean.
 
 ## Minimal integration
 
+For the HTTP service, supply an operator-owned JSON file to
+`python -m tahu.server serve --public-context FILE`. It has a `plans` object
+(the format in [the example](../examples/mail_public_context.json)) and a
+`records` array of `{"id": "...", "text": "...", "labels": []}` objects.
+The service verifies every plan against the registry before listening. Restart
+the service when the registry or pins change.
+
+With operator credentials, POST `{"id": "new_task", "plan": "plan_name"}` to
+`/v1/public-tasks`. Use the returned `identity.token` for gateway steps and
+pass the returned `job` directly to a fresh provider invocation. The request
+accepts only a new task ID and an existing plan name. This prevents caller data
+or prior task history from being imported through this endpoint. The operator
+must verify the registry and keep the configuration, credentials and provider
+session under its control. The existing general task endpoint still trusts
+operator-supplied artifacts and labels.
+
+The [November 13 report](../reports/live-public-intake-2026-11-13.json)
+compares the existing mixed-input TAHU workflow with server-side public intake
+on six cases. The configured case uses the existing public-only prompt and
+source pin. The other five cases use identical inputs. Each arm made six
+independent Codex calls with a 120-second timeout and no evaluation retries.
+Normal completion rose from 2/4 to 3/4 and safe send denials fell from 2/4 to
+1/4. Both runs had zero runtime errors and zero unauthorized local deliveries.
+Neither run produced an unsafe send proposal. The public web reply still
+required review. The developer-authored corpus is small and has been used
+previously, so the result measures this workflow change.
+
+```sh
+python scripts/evaluate_lifecycle.py --live --compare-public-intake --model gpt-6.1-sol --output public-intake.json
+```
+
+The Python helper remains available for in-process integrations:
+
 ```python
 from tahu.context import PublicContextPlan
 
