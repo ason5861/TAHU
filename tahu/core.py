@@ -22,6 +22,14 @@ def digest(value):
     return hashlib.sha256(canonical(value).encode()).hexdigest()
 
 
+def public_plan_current(policy, public_plans):
+    binding = policy.get("public_plan")
+    if binding is None:
+        return True
+    name, fingerprint = binding
+    return public_plans is not None and public_plans.get(name) == fingerprint
+
+
 def identifier(value):
     return isinstance(value, str) and 0 < len(value) <= 64 and all(c in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for c in value)
 
@@ -91,7 +99,7 @@ class Gateway:
         value = hashlib.sha256((previous + encoded).encode()).hexdigest()
         db.execute("INSERT INTO audit(event,previous_hash,hash) VALUES(?,?,?)", (encoded, previous, value))
 
-    def create_task(self, data):
+    def create_task(self, data, *, public_plan=None):
         if not isinstance(data, dict) or set(data) != {"id", "purpose", "budget", "attempt_limit", "ttl", "destinations", "artifacts"}:
             raise Invalid("invalid_task_fields")
         if not identifier(data["id"]) or not isinstance(data["purpose"], str) or not 1 <= len(data["purpose"]) <= 500:
@@ -119,6 +127,8 @@ class Gateway:
                 raise Invalid("invalid_labels")
         token = secrets.token_urlsafe(32)
         policy = {k: data[k] for k in ("purpose", "budget", "attempt_limit", "destinations")}
+        if public_plan is not None:
+            policy["public_plan"] = public_plan
         with self.transaction() as db:
             if db.execute("SELECT 1 FROM tasks WHERE id=?", (data["id"],)).fetchone():
                 raise Invalid("task_exists")
@@ -143,7 +153,7 @@ class Gateway:
             self.audit(db, {"event": "task_stopped", "task": task})
         return {"stopped": True}
 
-    def approve(self, data):
+    def approve(self, data, *, public_plans=None):
         required = {"task", "artifact", "destination", "ttl"}
         if (not isinstance(data, dict) or not required <= set(data)
                 or not set(data) <= required | {"expected_content_hash"}
@@ -160,7 +170,10 @@ class Gateway:
             artifact = db.execute("SELECT * FROM artifacts WHERE task=? AND id=?", (data["task"], data["artifact"])).fetchone()
             if not task or not artifact or task["stopped"] or task["expires"] <= time.time():
                 raise Invalid("inactive_task_or_unknown_artifact")
-            if data["destination"] not in json.loads(task["policy"])["destinations"]:
+            policy = json.loads(task["policy"])
+            if not public_plan_current(policy, public_plans):
+                raise Invalid("public_plan_changed")
+            if data["destination"] not in policy["destinations"]:
                 raise Invalid("unknown_destination")
             labels = set(json.loads(artifact["labels"])) | set(json.loads(task["exposure"]))
             if "unknown" in labels:
@@ -172,7 +185,7 @@ class Gateway:
             self.audit(db, {"event": "operator_approved", "task": data["task"], "artifact": data["artifact"], "destination": data["destination"], "content_hash": content_hash})
         return {"approved": True, "content_hash": content_hash}
 
-    def step(self, task_id, request):
+    def step(self, task_id, request, *, public_plans=None):
         # Snapshot before using any caller-owned collections; JSON only.
         try:
             request = json.loads(canonical(request))
@@ -201,6 +214,8 @@ class Gateway:
                 return finish(False, "task_stopped", cache=False)
             if task["expires"] <= time.time():
                 return finish(False, "task_expired", cache=False)
+            if not public_plan_current(policy, public_plans):
+                return finish(False, "public_plan_changed", cache=False)
             if task["attempts"] >= policy["attempt_limit"]:
                 return finish(False, "attempt_limit", cache=False)
             db.execute("UPDATE tasks SET attempts=attempts+1 WHERE id=?", (task_id,))
@@ -271,7 +286,7 @@ class Gateway:
             db.execute("UPDATE tasks SET used=used+1, exposure=? WHERE id=?", (canonical(sorted(exposure)), task_id))
             return finish(True, "allowed", result)
 
-    def execute_delivery(self, delivery_id, executor):
+    def execute_delivery(self, delivery_id, executor, *, public_plans=None):
         """Trusted executor only. Serialize stop with bounded local SMTP execution.
 
         EXECUTING is durable before entering the effect transaction. A crash or
@@ -312,6 +327,8 @@ class Gateway:
                 return finish(db, "DENIED", "task_expired")
             try:
                 policy = json.loads(task["policy"])
+                if not public_plan_current(policy, public_plans):
+                    return finish(db, "DENIED", "public_plan_changed")
                 payload = {"task": entry["task"], "op": "send", "artifact": entry["artifact"],
                            "destination": entry["destination"], "text": entry["text"]}
                 if (execution["policy_version"] != POLICY_VERSION or execution["policy_hash"] != digest(policy)
