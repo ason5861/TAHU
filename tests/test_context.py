@@ -1,18 +1,46 @@
 import hashlib
 import json
+import tempfile
 import unittest
+from pathlib import Path
 from urllib.error import HTTPError
 
 from scripts.evaluate_lifecycle import public_intake_config
 from tahu.client import Client
 from tahu.context import PublicContextPlan
-from tahu.core import Invalid
+from tahu.core import Gateway, Invalid, digest
 from tahu.mail_evaluation import run_mail_evaluation
 from tahu.mail_fixture import mail_gateway
 from tests.test_mail import SyntheticMailAgent
+from tests.test_gateway import policy
 
 
 class PublicContextTests(unittest.TestCase):
+    def test_removed_or_changed_plan_blocks_cached_read_and_queued_delivery_after_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "gateway.sqlite3"
+            gateway = Gateway(state)
+            task_data = policy("public_task")
+            task_data["artifacts"] = [{"id": "course", "text": "Public course facts", "labels": []}]
+            fingerprint = digest(task_data["artifacts"])
+            plans = {"course_plan": fingerprint}
+            task = gateway.create_task(task_data, public_plan=("course_plan", fingerprint))["task"]
+            read = {"request_id": "read", "op": "read", "id": "course"}
+            self.assertTrue(gateway.step(task, read, public_plans=plans)["allowed"])
+            delivery = gateway.step(task, {"request_id": "send", "op": "send", "id": "course",
+                                           "destination": "public"}, public_plans=plans)
+            self.assertTrue(delivery["allowed"])
+            restarted = Gateway(state)
+            for current in (None, {}, {"course_plan": digest("changed")}):
+                self.assertEqual(restarted.step(task, read, public_plans=current)["reason"], "public_plan_changed")
+            with self.assertRaisesRegex(Invalid, "public_plan_changed"):
+                restarted.approve({"task": task, "artifact": "course", "destination": "public", "ttl": 60},
+                                  public_plans={})
+            effects = []
+            result = restarted.execute_delivery(delivery["result"]["delivery_id"], effects.append, public_plans={})
+            self.assertEqual((result["status"], result["reason"]), ("DENIED", "public_plan_changed"))
+            self.assertEqual(effects, [])
+
     def test_public_intake_uses_server_plan_and_rejects_supplied_context(self):
         plan = "safe_reply_after_secret"
         with mail_gateway(public_intake_config()) as (operator, url, _, _):

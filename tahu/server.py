@@ -9,7 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from .context import PublicContextPlan
-from .core import Gateway, Invalid, identifier
+from .core import Gateway, Invalid, digest, identifier
 
 
 def strict_json(raw):
@@ -39,6 +39,7 @@ def make_server(gateway, operator_token, port=8765, mail_executor=None, mail_rec
             public_jobs[name] = PublicContextPlan(
                 plan["request"], tuple(tuple(pin) for pin in plan["records"])
             ).job(public_context["records"])
+    public_plans = {name: digest(job) for name, job in public_jobs.items()}
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "TAHU/0.3"
@@ -104,7 +105,7 @@ def make_server(gateway, operator_token, port=8765, mail_executor=None, mail_rec
             if self.path == "/v1/step":
                 if operator:
                     return self.reply(403, {"error": "task_token_required"})
-                return self.reply(200, gateway.step(task, body))
+                return self.reply(200, gateway.step(task, body, public_plans=public_plans))
             if not operator:
                 return self.reply(403, {"error": "operator_required"})
             if self.path == "/v1/public-tasks":
@@ -116,18 +117,19 @@ def make_server(gateway, operator_token, port=8765, mail_executor=None, mail_rec
                     "id": body["id"], "purpose": "Configured public drafting",
                     "budget": 20, "attempt_limit": 40, "ttl": 1800,
                     "destinations": {"public": []}, "artifacts": job["documents"],
-                })
+                }, public_plan=(body["plan"], public_plans[body["plan"]]))
                 return self.reply(201, {"identity": identity, "job": job})
             if self.path == "/v1/tasks":
                 return self.reply(201, gateway.create_task(body))
             if self.path == "/v1/approve":
-                return self.reply(200, gateway.approve(body))
+                return self.reply(200, gateway.approve(body, public_plans=public_plans))
             if self.path == "/v1/execute-mail":
                 if mail_executor is None:
                     return self.reply(503, {"error": "local_mail_executor_unavailable"})
                 if not isinstance(body, dict) or set(body) != {"delivery_id"}:
                     raise Invalid("invalid_execution_request")
-                return self.reply(200, gateway.execute_delivery(body["delivery_id"], mail_executor))
+                return self.reply(200, gateway.execute_delivery(body["delivery_id"], mail_executor,
+                                                                public_plans=public_plans))
             if self.path == "/v1/reconcile-mail":
                 if mail_receipts is None:
                     return self.reply(503, {"error": "local_mail_receipts_unavailable"})
