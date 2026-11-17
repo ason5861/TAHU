@@ -30,6 +30,15 @@ For the HTTP service, supply an operator-owned JSON file to
 The service verifies every plan against the registry before listening. Restart
 the service when the registry or pins change.
 
+New configured public tasks store a fingerprint of the verified job in their
+policy. After restarting with a changed, removed, or absent plan, the gateway
+denies steps (including cached reads), approvals, and new execution of queued
+local mail for those tasks. Receipt reconciliation for already attempted mail
+remains available. Stop affected task IDs explicitly for permanent revocation,
+including public tasks created before fingerprints were introduced. Keep
+configuration and service restarts under operator control, and retire old
+service instances when changing plans.
+
 With operator credentials, POST `{"id": "new_task", "plan": "plan_name"}` to
 `/v1/public-tasks`. Use the returned `identity.token` for gateway steps and
 pass the returned `job` directly to a fresh provider invocation. The request
